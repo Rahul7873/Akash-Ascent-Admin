@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akash Ascent - Course Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        .card-shadow { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
+        .dashed-border { border: 2px dashed #cbd5e1; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center font-sans">
+
+    <div id="desktop-1" class="bg-white w-full  min-h-screen p-12 rounded-lg card-shadow relative">
+        <div id="header-section" class="flex items-center gap-4 mb-20">
+                       
+            <div id="logo-container" class="w-24 h-24 bg-white rounded-full flex items-center justify-center overflow-hidden">
+                <img id="main-logo "  src="logo.png" alt="Logo" class="w-full h-full object-cover" />
+            </div>
+            <div id="title-container">
+                <h1 id="main-title" class="text-2xl font-bold tracking-tight text-gray-800 uppercase">Akash Ascent</h1>
+                <p id="main-tagline" class="text-md text-gray-800 italic">Learn. Grow. Succeed.</p>
+            </div>
+
+             <button id="logout-btn" class="ml-auto px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition">Logout</button>
+        </div>
+
+        <div id="button-section" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch mt-12">
+            <a id="existing-btn" href="all-playlists.html" class="w-full block p-8 bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-lg transition flex flex-col items-start gap-4 text-left">
+                <div class="text-4xl">📚</div>
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900">All Playlists</h2>
+                    <p class="text-sm text-gray-500">Browse every playlist you created and open them for review or editing.</p>
+                </div>
+            </a>
+            <a id="add-preference-btn" href="add-preference.html" class="w-full block p-8 bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-lg transition flex flex-col items-start gap-4 text-left">
+                <div class="text-4xl">🏷️</div>
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900">Add Preference</h2>
+                    <p class="text-sm text-gray-500">Manage course preferences and add classes under them.</p>
+                </div>
+            </a>
+            <a id="new-course-btn" href="create-playlist.html" class="w-full block p-8 bg-blue-600 rounded-3xl border border-blue-500 shadow-md hover:shadow-xl transition text-white">
+                <div class="text-4xl">➕</div>
+                <div class="mt-3">
+                    <h2 class="text-xl font-semibold">New Course</h2>
+                    <p class="text-sm text-blue-100">Create a new playlist with thumbnail, class details, and course settings.</p>
+                </div>
+            </a>
+            <a id="add-mahapack-btn" href="create-mahapack.html" class="w-full block p-8 bg-purple-600 rounded-3xl border border-purple-500 shadow-md hover:shadow-xl transition text-white">
+                <div class="text-4xl">📦</div>
+                <div class="mt-3">
+                    <h2 class="text-xl font-semibold">Add Mahapack</h2>
+                    <p class="text-sm text-purple-100">Bundle playlists under a selected class into a complete Mahapack course.</p>
+                </div>
+            </a>
+            <a id="all-users-btn" href="all-users.html" class="w-full block p-8 bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-lg transition flex flex-col items-start gap-4 text-left">
+                <div class="text-4xl">👥</div>
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900">All Users</h2>
+                    <p class="text-sm text-gray-500">View and manage all registered users in the system.</p>
+                </div>
+            </a>
+            <a id="recent-users-btn" href="recent-users.html" class="w-full block p-8 bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-lg transition flex flex-col items-start gap-4 text-left">
+                <div class="text-4xl">⏱️</div>
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900">Recent Users</h2>
+                    <p class="text-sm text-gray-500">View the list of recently registered student accounts.</p>
+                </div>
+            </a>
+        </div>
+
+        <!-- Footer Section -->
+        <footer id="footer-section" class="mt-20 pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
+            <div>
+                © 2026 <span class="font-semibold text-gray-700">Akash Ascent</span>. All rights reserved.
+            </div>
+            <div class="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full font-medium border border-blue-100">
+                <span>💬 For any problem or technical assistance, please call the developer.</span>
+            </div>
+        </footer>
+    </div>
+    <!-- Firebase App & Database -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="firebase-init.js"></script>
+    <script src="logout.js"></script>
+    <script>
+    // Redirect to login.html if not logged in
+    if (!sessionStorage.getItem('loggedIn')) {
+        window.location.href = 'login.html';
+    }
+    </script>
+</body>
+</html>

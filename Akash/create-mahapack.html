@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akash Ascent - Create Mahapack</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase App (the core Firebase SDK) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <!-- Firebase Database -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <!-- Firebase Storage -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+    <script src="firebase-init.js"></script>
+    <style>
+        .card-shadow { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
+        .dashed-border { border: 2px dashed #cbd5e1; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-stretch justify-start font-sans">
+    <div id="create-mahapack" class="bg-white w-full min-h-screen p-6 lg:p-12 rounded-none lg:rounded-lg card-shadow relative">
+        <!-- Header Section -->
+        <div id="header-section" class="flex items-center gap-4 mb-10">
+            <div id="logo-container" class="w-24 h-24 bg-white rounded-full flex items-center justify-center overflow-hidden">
+                <img id="main-logo" src="logo.png" alt="Logo" class="w-full h-full object-cover" />
+            </div>
+            <div id="title-container" class="flex-1">
+                <h1 id="main-title" class="text-2xl font-bold tracking-tight text-gray-800 uppercase">Akash Ascent</h1>
+                <p id="main-tagline" class="text-md text-gray-800 italic">Create a new Mahapack course bundle under a selected class preference.</p>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+                <a href="Dashboard.html" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition">Back</a>
+                <button id="logout-btn" class="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition">Logout</button>
+            </div>
+        </div>
+
+        <form id="mahapack-form" class="space-y-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <!-- Left Column: Mahapack Details -->
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Upload Mahapack Thumbnail</label>
+                        <div class="w-full aspect-[16/9] dashed-border rounded-xl flex items-center justify-center bg-gray-50 overflow-hidden relative">
+                            <img id="thumbnail-preview" src="" alt="Thumbnail preview" class="absolute inset-0 w-full h-full object-cover hidden z-10" />
+                            <label class="relative flex flex-col items-center justify-center w-full h-full cursor-pointer text-gray-500 z-20">
+                                <div class="flex flex-col items-center justify-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                    </svg>
+                                    <span class="font-medium text-gray-700">Click to upload Mahapack thumbnail photo</span>
+                                </div>
+                                <input id="thumbnail-upload" name="thumbnail-upload" type="file" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer" />
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="course-class" class="block text-sm font-bold text-gray-700 mb-1">Select Preference Class</label>
+                        <select id="course-class" name="course-class" class="w-full p-3 border border-gray-300 bg-white rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium">
+                            <option value="" disabled selected>Loading preference classes...</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Playlists under this selected class will automatically populate on the right panel.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="mahapack-title" class="block text-sm font-bold text-gray-700 mb-1">Mahapack Title</label>
+                            <input id="mahapack-title" name="mahapack-title" type="text" placeholder="e.g. Class 6 All Subjects Mahapack" class="w-full p-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                        </div>
+                        <div>
+                            <label for="mahapack-author" class="block text-sm font-bold text-gray-700 mb-1">Author Name</label>
+                            <input id="mahapack-author" name="mahapack-author" type="text" placeholder="e.g. Akash Ascent Team" class="w-full p-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="mahapack-price" class="block text-sm font-bold text-gray-700 mb-1">Price (₹)</label>
+                        <input id="mahapack-price" name="mahapack-price" type="number" placeholder="e.g. 1499" class="w-full p-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                    </div>
+
+                    <div>
+                        <label for="mahapack-description" class="block text-sm font-bold text-gray-700 mb-1">Mahapack Description</label>
+                        <textarea id="mahapack-description" name="mahapack-description" rows="5" placeholder="Enter comprehensive description for this Mahapack course bundle..." class="w-full p-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"></textarea>
+                    </div>
+                </div>
+
+                <!-- Right Column: Playlist Checkboxes -->
+                <div class="space-y-4 flex flex-col">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                            <span>📦 Included Playlists</span>
+                            <span id="selected-count" class="text-xs bg-purple-100 text-purple-700 px-2.5 py-0.5 rounded-full font-semibold">0 selected</span>
+                        </h2>
+                        <p class="text-sm text-gray-500 mt-1">Select playlists under the chosen class to bundle into this Mahapack.</p>
+                    </div>
+
+                    <!-- Playlists Checkbox List Container -->
+                    <div id="playlists-checkbox-container" class="flex-1 bg-gray-50 border border-gray-200 rounded-2xl p-4 overflow-y-auto max-h-[520px] space-y-3 min-h-[300px]">
+                        <div class="flex flex-col items-center justify-center py-20 text-gray-400 text-sm text-center">
+                            <svg class="w-10 h-10 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                            </svg>
+                            <span>Select a Preference Class above to view available playlists</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Section -->
+            <div class="pt-4 border-t border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div id="upload-status" class="text-sm font-medium text-gray-600"></div>
+                <button type="submit" id="submit-btn" class="px-8 py-3.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition font-semibold text-base shadow-md">
+                    Create Mahapack
+                </button>
+            </div>
+        </form>
+
+        <!-- Footer Section -->
+        <footer id="footer-section" class="mt-16 pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
+            <div>
+                © 2026 <span class="font-semibold text-gray-700">Akash Ascent</span>. All rights reserved.
+            </div>
+            <div class="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full font-medium border border-blue-100">
+                <span>💬 For any problem or technical assistance, please call the developer.</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="logout.js"></script>
+    <script src="create-mahapack.js"></script>
+</body>
+</html>
