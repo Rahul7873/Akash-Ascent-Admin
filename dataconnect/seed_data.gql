@@ -1,0 +1,108 @@
+mutation CreateDemoData @transaction @auth(level: USER, insecureReason: "This is a seed mutation and should only be runnable by authenticated users for development purposes.") {
+  user_insertMany(data: [
+    {
+      id: "b4a8e2e2-5c91-4e4c-8b8a-1d5d5a6a2f01",
+      email: "teacher1@example.com",
+      displayName: "Alice Smith",
+      role: "Teacher",
+      createdAt: "2023-01-15T10:00:00Z",
+      bio: "Experienced teacher in software development."
+    },
+    {
+      id: "a3f7c1c1-2d3b-4a5a-9e9e-2f2f2f2f2f02",
+      email: "student1@example.com",
+      displayName: "Bob Johnson",
+      role: "Student",
+      createdAt: "2023-02-01T11:00:00Z"
+    },
+    {
+      id: "c5d9e3e3-6f7g-4h8h-0i0i-3j3j3j3j3j03",
+      email: "student2@example.com",
+      displayName: "Charlie Brown",
+      role: "Student",
+      createdAt: "2023-02-05T12:00:00Z"
+    }
+  ])
+  course_insertMany(data: [
+    {
+      id: "d6g0h4h4-7i8j-5k9k-1l1l-4m4m4m4m4m04",
+      title: "Introduction to GraphQL",
+      description: "A comprehensive course on GraphQL fundamentals.",
+      price: 99.99,
+      createdAt: "2023-03-01T09:00:00Z",
+      teacherId: "b4a8e2e2-5c91-4e4c-8b8a-1d5d5a6a2f01",
+      category: "Programming"
+    },
+    {
+      id: "e7h1i5i5-8j9k-6l0l-2m2m-5n5n5n5n5n05",
+      title: "Advanced React Patterns",
+      description: "Learn advanced patterns and techniques in React development.",
+      price: 149.99,
+      createdAt: "2023-03-10T14:00:00Z",
+      teacherId: "b4a8e2e2-5c91-4e4c-8b8a-1d5d5a6a2f01",
+      category: "Web Development"
+    }
+  ])
+  lesson_insertMany(data: [
+    {
+      id: "f8i2j6j6-9k0l-7m1m-3n3n-6o6o6o6o6o06",
+      title: "What is GraphQL?",
+      orderIndex: 1,
+      createdAt: "2023-03-02T10:00:00Z",
+      courseId: "d6g0h4h4-7i8j-5k9k-1l1l-4m4m4m4m4m04",
+      description: "An overview of GraphQL concepts and benefits."
+    },
+    {
+      id: "g9j3k7k7-0l1m-8n2n-4o4o-7p7p7p7p7p07",
+      title: "Schema Design in GraphQL",
+      orderIndex: 2,
+      createdAt: "2023-03-05T11:00:00Z",
+      courseId: "d6g0h4h4-7i8j-5k9k-1l1l-4m4m4m4m4m04",
+      description: "Best practices for designing GraphQL schemas."
+    },
+    {
+      id: "h0k4l8l8-1m2n-9o3o-5p5p-8q8q8q8q8q08",
+      title: "Hooks and Context API",
+      orderIndex: 1,
+      createdAt: "2023-03-12T10:00:00Z",
+      courseId: "e7h1i5i5-8j9k-6l0l-2m2m-5n5n5n5n5n05"
+    }
+  ])
+  courseMaterial_insertMany(data: [
+    {
+      id: "i1l5m9m9-2n3o-0p4p-6q6q-9r9r9r9r9r09",
+      materialType: "Video",
+      url: "https://example.com/graphql-intro-video",
+      createdAt: "2023-03-02T10:30:00Z",
+      lessonId: "f8i2j6j6-9k0l-7m1m-3n3n-6o6o6o6o6o06",
+      title: "Intro to GraphQL Video Lecture",
+      duration: 1800
+    },
+    {
+      id: "j2m6n0n0-3o4p-1q5q-7r7r-0s0s0s0s0s10",
+      materialType: "Document",
+      url: "https://example.com/graphql-schema-guide.pdf",
+      createdAt: "2023-03-05T11:30:00Z",
+      lessonId: "g9j3k7k7-0l1m-8n2n-4o4o-7p7p7p7p7p07",
+      title: "GraphQL Schema Design Guide",
+      fileSize: 2048000
+    }
+  ])
+  enrollment_insertMany(data: [
+    {
+      id: "k3n7o1o1-4p5q-2r6r-8s8s-1t1t1t1t1t11",
+      enrolledAt: "2023-03-03T09:00:00Z",
+      status: "Active",
+      studentId: "a3f7c1c1-2d3b-4a5a-9e9e-2f2f2f2f2f02",
+      courseId: "d6g0h4h4-7i8j-5k9k-1l1l-4m4m4m4m4m04",
+      progress: 25
+    },
+    {
+      id: "l4o8p2p2-5q6r-3s7s-9t9t-2u2u2u2u2u12",
+      enrolledAt: "2023-03-11T15:00:00Z",
+      status: "Active",
+      studentId: "c5d9e3e3-6f7g-4h8h-0i0i-3j3j3j3j3j03",
+      courseId: "e7h1i5i5-8j9k-6l0l-2m2m-5n5n5n5n5n05"
+    }
+  ])
+}

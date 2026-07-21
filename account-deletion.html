@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Deletion Request - Akash Ascent</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase App & Database (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script type="module" src="firebase-init.js"></script>
+    <style>
+        .card-shadow { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center font-sans py-10 px-4">
+    <div class="bg-white w-full max-w-lg p-8 rounded-xl card-shadow flex flex-col items-center">
+        <!-- Logo and Branding Header -->
+        <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center overflow-hidden mb-3 border border-gray-100 shadow-sm">
+            <img src="logo.png" alt="Logo" class="w-full h-full object-cover" />
+        </div>
+        <div class="text-center mb-6">
+            <h1 class="text-xl font-bold tracking-tight text-gray-800 uppercase">Akash Ascent</h1>
+            <p class="text-xs text-gray-500 italic mt-0.5">Account Deletion Portal</p>
+        </div>
+
+        <!-- Section Title & Policy Note -->
+        <div class="w-full mb-6 pb-4 border-b border-gray-100 text-center">
+            <h2 class="text-2xl font-bold text-gray-800">Account Deletion Request</h2>
+            <p class="text-xs text-gray-500 mt-2 leading-relaxed">
+                To prevent unauthorized deletion requests, your account must exist in our system and be verified via an OTP code sent to your phone number before sending your request for admin approval.
+            </p>
+        </div>
+
+        <!-- STEP 1: Account Identification & Request OTP Form -->
+        <form id="step1-form" class="w-full flex flex-col gap-4">
+            <div class="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 font-medium">
+                <span>🔒 Step 1 of 2: Account Verification</span>
+            </div>
+
+            <div>
+                <label for="fullName" class="block text-sm font-bold text-gray-700 mb-1">Full Name <span class="text-red-500">*</span></label>
+                <input id="fullName" name="fullName" type="text" required 
+                    class="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-400" 
+                    placeholder="Enter your full name">
+            </div>
+
+            <div>
+                <label for="userIdentifier" class="block text-sm font-bold text-gray-700 mb-1">Phone Number / Email / Username <span class="text-red-500">*</span></label>
+                <input id="userIdentifier" name="userIdentifier" type="text" required 
+                    class="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-400" 
+                    placeholder="e.g. +91 9876543210 or user@example.com">
+                <span class="text-xs text-gray-400 mt-1 block">We will verify account existence and dispatch an OTP to your phone number.</span>
+            </div>
+
+            <div>
+                <label for="reason" class="block text-sm font-bold text-gray-700 mb-1">Reason for Deletion <span class="text-red-500">*</span></label>
+                <select id="reason" name="reason" required 
+                    class="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-400 bg-white">
+                    <option value="" disabled selected>-- Select a reason --</option>
+                    <option value="Privacy Concerns">Privacy Concerns</option>
+                    <option value="No longer using the service">No longer using the service</option>
+                    <option value="Created a duplicate account">Created a duplicate account</option>
+                    <option value="Technical issues / Bugs">Technical issues / Bugs</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="details" class="block text-sm font-bold text-gray-700 mb-1">Additional Details / Comments</label>
+                <textarea id="details" name="details" rows="3" 
+                    class="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-400" 
+                    placeholder="Provide any additional details regarding your request..."></textarea>
+            </div>
+
+            <div class="flex items-start gap-2 mt-1">
+                <input id="confirmCheck" name="confirmCheck" type="checkbox" required class="mt-1 h-4 w-4 text-red-600 rounded border-gray-300 focus:ring-red-500">
+                <label for="confirmCheck" class="text-xs text-gray-600 leading-tight">
+                    I confirm that upon OTP verification and admin approval, my account will be permanently deleted.
+                </label>
+            </div>
+
+            <div id="step1-error" class="text-red-600 text-sm hidden font-medium p-3 bg-red-50 rounded-md border border-red-200"></div>
+
+            <button type="submit" id="step1-btn" 
+                class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-md shadow transition flex items-center justify-center gap-2 mt-2">
+                <span>Verify Account & Send OTP</span>
+            </button>
+        </form>
+
+        <!-- STEP 2: OTP Verification Form (Initially Hidden) -->
+        <form id="step2-form" class="w-full hidden flex flex-col gap-4">
+            <div class="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-green-800 font-medium">
+                <span>🔑 Step 2 of 2: Enter OTP Verification Code</span>
+                <span class="text-[11px] text-green-700 font-semibold">Account Verified ✓</span>
+            </div>
+
+            <!-- Phone / SMS Status Notice -->
+            <div id="sms-status-notice" class="bg-blue-50 border border-blue-200 text-blue-900 rounded-lg p-3 text-xs flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                <div id="sms-status-text">
+                    An OTP code has been sent to your registered phone number: <span id="target-phone-display" class="font-bold"></span>.
+                </div>
+            </div>
+
+            <!-- Demo Account Hint Box (Only shown for Demo account +91 9999988888) -->
+            <div id="otp-demo-banner" class="bg-amber-50 border border-amber-300 text-amber-900 rounded-lg p-3 text-xs flex flex-col gap-1 hidden">
+                <div class="font-bold flex items-center gap-1.5 text-amber-800">
+                    <span>🎮 Review Account OTP:</span> <span class="font-mono bg-amber-100 px-2 py-0.5 rounded border border-amber-300 font-bold" id="demo-otp-code">121121</span>
+                </div>
+            </div>
+
+            <div>
+                <label for="otpInput" class="block text-sm font-bold text-gray-700 mb-1">Enter 6-Digit Verification OTP <span class="text-red-500">*</span></label>
+                <input id="otpInput" name="otpInput" type="text" maxlength="6" pattern="\d{6}" required 
+                    class="w-full p-3 border border-gray-300 rounded-md text-center text-xl font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-red-400" 
+                    placeholder="123456" autocomplete="off">
+            </div>
+
+            <div class="flex items-center justify-between text-xs text-gray-500">
+                <span>Didn't receive code?</span>
+                <button type="button" id="resend-otp-btn" class="text-blue-600 hover:text-blue-800 font-semibold underline disabled:opacity-50 disabled:no-underline">
+                    Resend OTP Code
+                </button>
+            </div>
+
+            <div id="step2-error" class="text-red-600 text-sm hidden font-medium p-3 bg-red-50 rounded-md border border-red-200"></div>
+
+            <div class="flex items-center gap-2 mt-2">
+                <button type="button" id="back-to-step1-btn" class="w-1/3 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold text-sm rounded-md transition text-center">
+                    Back
+                </button>
+                <button type="submit" id="step2-btn" 
+                    class="w-2/3 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm rounded-md shadow transition flex items-center justify-center gap-2">
+                    <span>Verify OTP & Submit</span>
+                </button>
+            </div>
+        </form>
+
+        <!-- Success Message View (Initially Hidden) -->
+        <div id="success-view" class="w-full hidden flex flex-col items-center text-center py-4">
+            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4 text-green-600">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Deletion Request Submitted</h3>
+            <p class="text-sm text-gray-600 mb-4 max-w-sm">
+                Account ownership verified via OTP! Your request has been sent to the administrator. After admin approval, your account will be permanently deleted.
+            </p>
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 w-full text-left text-xs text-gray-600 space-y-1.5 mb-6">
+                <div><span class="font-semibold text-gray-700">Request ID:</span> <span id="res-request-id" class="font-mono text-gray-800"></span></div>
+                <div><span class="font-semibold text-gray-700">Verified User ID:</span> <span id="res-user-id" class="font-mono text-gray-800"></span></div>
+                <div><span class="font-semibold text-gray-700">Submitted For:</span> <span id="res-identifier" class="text-gray-800"></span></div>
+                <div><span class="font-semibold text-gray-700">OTP Status:</span> <span class="bg-green-100 text-green-800 px-2 py-0.5 rounded font-semibold text-[11px]">✓ Verified</span></div>
+                <div><span class="font-semibold text-gray-700">Submitted At:</span> <span id="res-timestamp" class="text-gray-800"></span></div>
+                <div><span class="font-semibold text-gray-700">Request Status:</span> <span class="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-semibold text-[11px]">Pending Admin Approval</span></div>
+            </div>
+            <p class="text-xs text-gray-400 mb-6">
+                Your account remains active until an administrator approves the deletion request.
+            </p>
+            <a href="login.html" class="w-full py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded-md font-medium text-sm text-center transition">
+                Return to Login Page
+            </a>
+        </div>
+
+        <!-- Navigation back to Login -->
+        <div id="back-link" class="mt-6 pt-4 border-t border-gray-100 w-full text-center">
+            <a href="login.html" class="text-xs text-gray-500 hover:text-gray-800 transition">
+                &larr; Back to Login
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // APITxT LIVE BACKEND SMS API INTEGRATION
+        // =========================================================================
+        var API_BASE_URL = "https://otp-apitxt.onrender.com";
+
+        function formatPhoneForApi(rawPhone) {
+            var digits = String(rawPhone || '').replace(/\D/g, '');
+            if (digits.length === 10) {
+                return '91' + digits;
+            }
+            return digits;
+        }
+
+        /**
+         * Dispatches OTP to user's phone number via APITxT Backend API
+         */
+        function sendSmsViaBackend(phone) {
+            var formattedMobile = formatPhoneForApi(phone);
+            return fetch(API_BASE_URL + "/api/otp/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ mobile: formattedMobile, channel: "sms" })
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    return response.json().then(function(errJson) {
+                        throw new Error(errJson.message || ("HTTP Error " + response.status));
+                    }).catch(function() {
+                        throw new Error("HTTP Error " + response.status);
+                    });
+                }
+                return response.json();
+            });
+        }
+
+        /**
+         * Verifies OTP code against APITxT Backend API
+         */
+        function verifySmsViaBackend(phone, otpCode) {
+            var formattedMobile = formatPhoneForApi(phone);
+            return fetch(API_BASE_URL + "/api/otp/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ mobile: formattedMobile, otp: otpCode })
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    return response.json().then(function(errJson) {
+                        throw new Error(errJson.message || ("HTTP Error " + response.status));
+                    }).catch(function() {
+                        throw new Error("Invalid or expired OTP code.");
+                    });
+                }
+                return response.json();
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var step1Form = document.getElementById('step1-form');
+            var step2Form = document.getElementById('step2-form');
+            var step1Btn = document.getElementById('step1-btn');
+            var step2Btn = document.getElementById('step2-btn');
+            var step1Error = document.getElementById('step1-error');
+            var step2Error = document.getElementById('step2-error');
+            var successView = document.getElementById('success-view');
+            var backLink = document.getElementById('back-link');
+            var demoBanner = document.getElementById('otp-demo-banner');
+            var resendOtpBtn = document.getElementById('resend-otp-btn');
+            var backToStep1Btn = document.getElementById('back-to-step1-btn');
+            var targetPhoneDisplay = document.getElementById('target-phone-display');
+            var smsStatusText = document.getElementById('sms-status-text');
+
+            var currentAccount = null;
+
+            function normalizeDigits(str) {
+                return String(str || '').replace(/\D/g, '');
+            }
+
+            function findMatchingAccount(usersSnapshot, identifier) {
+                if (!usersSnapshot.exists()) return null;
+                var users = usersSnapshot.val();
+                if (!users) return null;
+
+                var inputClean = identifier.trim().toLowerCase();
+                var inputDigits = normalizeDigits(identifier);
+
+                for (var key in users) {
+                    if (!users.hasOwnProperty(key)) continue;
+                    var user = users[key] || {};
+
+                    var userEmail = (user.email || '').trim().toLowerCase();
+                    var userUsername = (user.username || '').trim().toLowerCase();
+                    var userPhone = (user.phone || user.phoneNumber || '').toString().trim();
+                    var userPhoneDigits = normalizeDigits(userPhone);
+
+                    if (key.toLowerCase() === inputClean) {
+                        return { userId: key, data: user };
+                    }
+                    if (userEmail && userEmail === inputClean) {
+                        return { userId: key, data: user };
+                    }
+                    if (userUsername && userUsername === inputClean) {
+                        return { userId: key, data: user };
+                    }
+                    if (inputDigits && userPhoneDigits && (userPhoneDigits === inputDigits || userPhoneDigits.endsWith(inputDigits) || inputDigits.endsWith(userPhoneDigits))) {
+                        return { userId: key, data: user };
+                    }
+                    if (userPhone && userPhone.toLowerCase() === inputClean) {
+                        return { userId: key, data: user };
+                    }
+                }
+                return null;
+            }
+
+            // Step 1 Submission: Verify Account & Send OTP via APITxT Backend
+            step1Form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                step1Error.classList.add('hidden');
+                step1Error.textContent = '';
+
+                var fullName = document.getElementById('fullName').value.trim();
+                var userIdentifier = document.getElementById('userIdentifier').value.trim();
+                var reason = document.getElementById('reason').value;
+                var details = document.getElementById('details').value.trim();
+                var confirmCheck = document.getElementById('confirmCheck').checked;
+
+                if (!fullName || !userIdentifier || !reason) {
+                    step1Error.textContent = 'Please fill out all required fields.';
+                    step1Error.classList.remove('hidden');
+                    return;
+                }
+
+                if (!confirmCheck) {
+                    step1Error.textContent = 'You must check the confirmation checkbox to proceed.';
+                    step1Error.classList.remove('hidden');
+                    return;
+                }
+
+                step1Btn.disabled = true;
+                step1Btn.innerHTML = '<span>Verifying account...</span>';
+
+                firebase.database().ref('users').once('value').then(function(snapshot) {
+                    var matchedAccount = findMatchingAccount(snapshot, userIdentifier);
+
+                    if (!matchedAccount) {
+                        step1Btn.disabled = false;
+                        step1Btn.innerHTML = '<span>Verify Account & Send OTP</span>';
+                        step1Error.textContent = 'Account Verification Failed: No registered account found matching "' + userIdentifier + '". Only registered account holders can request account deletion.';
+                        step1Error.classList.remove('hidden');
+                        return;
+                    }
+
+                    var targetPhone = matchedAccount.data.phone || matchedAccount.data.phoneNumber || userIdentifier;
+                    currentAccount = {
+                        userId: matchedAccount.userId,
+                        fullName: fullName,
+                        userIdentifier: userIdentifier,
+                        reason: reason,
+                        details: details,
+                        email: matchedAccount.data.email || '',
+                        phone: targetPhone
+                    };
+
+                    targetPhoneDisplay.textContent = targetPhone;
+                    step1Btn.innerHTML = '<span>Sending SMS OTP to phone...</span>';
+
+                    // Call APITxT API endpoint /api/otp/send
+                    return sendSmsViaBackend(targetPhone).then(function(result) {
+                        var cleanDigits = normalizeDigits(targetPhone);
+                        if (cleanDigits.endsWith('9999988888') || (result.data && result.data.isDemo)) {
+                            demoBanner.classList.remove('hidden');
+                        } else {
+                            demoBanner.classList.add('hidden');
+                        }
+
+                        smsStatusText.innerHTML = 'An OTP code has been sent to your registered phone number: <span class="font-bold">' + targetPhone + '</span>.';
+
+                        // Transition to Step 2
+                        step1Form.classList.add('hidden');
+                        step2Form.classList.remove('hidden');
+                        document.getElementById('otpInput').value = '';
+                        step2Error.classList.add('hidden');
+                    });
+
+                }).catch(function(error) {
+                    console.error('Account verification or SMS dispatch error:', error);
+                    step1Error.textContent = 'Failed to dispatch SMS OTP: ' + error.message;
+                    step1Error.classList.remove('hidden');
+                    step1Btn.disabled = false;
+                    step1Btn.innerHTML = '<span>Verify Account & Send OTP</span>';
+                });
+            });
+
+            // Resend OTP logic
+            resendOtpBtn.addEventListener('click', function() {
+                if (!currentAccount) return;
+
+                resendOtpBtn.disabled = true;
+                resendOtpBtn.textContent = 'Sending...';
+
+                sendSmsViaBackend(currentAccount.phone).then(function() {
+                    resendOtpBtn.disabled = false;
+                    resendOtpBtn.textContent = 'Resend OTP Code';
+                    step2Error.textContent = 'A new OTP code has been sent to ' + currentAccount.phone + '!';
+                    step2Error.classList.remove('hidden');
+                    step2Error.className = 'text-green-700 text-xs font-medium p-2.5 bg-green-50 rounded-md border border-green-200 text-center';
+                    setTimeout(function() {
+                        step2Error.className = 'text-red-600 text-sm hidden font-medium p-3 bg-red-50 rounded-md border border-red-200';
+                    }, 4000);
+                }).catch(function(err) {
+                    resendOtpBtn.disabled = false;
+                    resendOtpBtn.textContent = 'Resend OTP Code';
+                    step2Error.textContent = 'Failed to resend SMS: ' + err.message;
+                    step2Error.classList.remove('hidden');
+                });
+            });
+
+            // Back to Step 1
+            backToStep1Btn.addEventListener('click', function() {
+                step2Form.classList.add('hidden');
+                step1Form.classList.remove('hidden');
+                step1Btn.disabled = false;
+                step1Btn.innerHTML = '<span>Verify Account & Send OTP</span>';
+            });
+
+            // Step 2 Submission: Verify OTP with APITxT API & Push Request to RTDB
+            step2Form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                step2Error.classList.add('hidden');
+                step2Error.textContent = '';
+                step2Error.className = 'text-red-600 text-sm hidden font-medium p-3 bg-red-50 rounded-md border border-red-200';
+
+                var enteredOtp = document.getElementById('otpInput').value.trim();
+
+                if (!enteredOtp || enteredOtp.length !== 6) {
+                    step2Error.textContent = 'Please enter a valid 6-digit OTP code.';
+                    step2Error.classList.remove('hidden');
+                    return;
+                }
+
+                step2Btn.disabled = true;
+                step2Btn.innerHTML = '<span>Verifying OTP...</span>';
+
+                // Call APITxT Backend API /api/otp/verify
+                verifySmsViaBackend(currentAccount.phone, enteredOtp).then(function(verifyResult) {
+                    step2Btn.innerHTML = '<span>Submitting request...</span>';
+
+                    var now = new Date();
+                    var timestampStr = now.toLocaleString();
+
+                    var newRequestRef = firebase.database().ref('account_deletion_requests').push();
+                    var requestData = {
+                        requestId: newRequestRef.key,
+                        userId: currentAccount.userId,
+                        fullName: currentAccount.fullName,
+                        userIdentifier: currentAccount.userIdentifier,
+                        matchedEmail: currentAccount.email,
+                        matchedPhone: currentAccount.phone,
+                        reason: currentAccount.reason,
+                        details: currentAccount.details,
+                        status: 'pending',
+                        accountVerified: true,
+                        otpVerified: true,
+                        apiJwtToken: (verifyResult.data && verifyResult.data.token) ? verifyResult.data.token : '',
+                        verifiedAt: firebase.database.ServerValue.TIMESTAMP,
+                        createdAt: firebase.database.ServerValue.TIMESTAMP,
+                        submittedAtString: timestampStr
+                    };
+
+                    return newRequestRef.set(requestData).then(function() {
+                        step2Form.classList.add('hidden');
+                        backLink.classList.add('hidden');
+
+                        document.getElementById('res-request-id').textContent = newRequestRef.key;
+                        document.getElementById('res-user-id').textContent = currentAccount.userId;
+                        document.getElementById('res-identifier').textContent = currentAccount.userIdentifier + ' (' + currentAccount.fullName + ')';
+                        document.getElementById('res-timestamp').textContent = timestampStr;
+
+                        successView.classList.remove('hidden');
+                    });
+                }).catch(function(error) {
+                    console.error('Error verifying OTP:', error);
+                    step2Error.textContent = 'OTP Verification Failed: ' + (error.message || 'Invalid or expired OTP code.');
+                    step2Error.classList.remove('hidden');
+                    step2Btn.disabled = false;
+                    step2Btn.innerHTML = '<span>Verify OTP & Submit</span>';
+                });
+            });
+        });
+    </script>
+</body>
+</html>

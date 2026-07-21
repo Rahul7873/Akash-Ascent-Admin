@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akash Ascent - Playlist Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+    <script src="firebase-init.js"></script>
+    <style>
+        .card-shadow { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen w-full font-sans overflow-x-hidden">
+    <div class="min-h-screen w-full max-w-full mx-auto px-4 py-10 flex flex-col gap-8">
+        <div id="header-section" class="flex flex-col md:flex-row items-start md:items-center gap-4 mb-12 w-full max-w-full">
+            <div id="logo-container" class="w-24 h-24 bg-white rounded-full flex items-center justify-center overflow-hidden">
+                <img id="main-logo" src="logo.png" alt="Logo" class="w-full h-full object-cover" />
+            </div>
+            <div id="title-container" class="flex-1">
+                <h1 id="main-title" class="text-3xl font-bold tracking-tight text-gray-900 uppercase">Akash Ascent</h1>
+                <p id="main-tagline" class="text-md text-gray-800 italic">Learn. Grow. Succeed.</p>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+                <a href="all-playlists.html" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition">Back</a>
+                <button id="logout-btn" class="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition">Logout</button>
+            </div>
+        </div>
+
+        <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+                <h2 id="playlist-title" class="text-4xl font-semibold text-gray-900">Playlist Dashboard</h2>
+                <p id="playlist-meta" class="mt-2 text-sm text-gray-600">Select a playlist to view video details below.</p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <button id="page-edit-playlist-btn" class="inline-flex items-center px-5 py-3 bg-amber-500 text-white rounded-full hover:bg-amber-600 transition text-sm font-medium">Edit Playlist</button>
+                <button id="page-add-video-btn" class="inline-flex items-center px-5 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition text-sm">Add Video</button>
+                <button id="page-delete-playlist-btn" class="inline-flex items-center px-5 py-3 bg-red-600 text-white rounded-full hover:bg-red-700 transition text-sm">Delete Playlist</button>
+            </div>
+        </div>
+
+        <div id="status-message" class="mb-6 text-sm text-gray-600">Loading playlist...</div>
+
+        <!-- Main Content Area: Standard Table or Mahapack Section View -->
+        <div id="mahapack-sections-container" class="space-y-8 w-full"></div>
+
+        <div id="standard-table-container" class="overflow-x-auto bg-white rounded-3xl border border-gray-200 card-shadow w-full">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Thumbnail</th>
+                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Video Title</th>
+                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Description</th>
+                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Serial</th>
+                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Author</th>
+                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Uploaded</th>
+                        <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Video</th>
+                        <th class="px-6 py-4 text-right text-sm font-semibold text-gray-900">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="playlist-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+            </table>
+        </div>
+
+        <div id="empty-state" class="hidden rounded-3xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-500 mt-6 w-full">
+            <p class="text-lg font-medium">No videos found in this playlist.</p>
+            <p class="mt-2">Add a new video to display it here.</p>
+            <a id="empty-add-video" href="#" class="inline-block mt-4 px-5 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition">Add Video</a>
+        </div>
+
+        <!-- Footer Section -->
+        <footer id="footer-section" class="mt-auto pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
+            <div>
+                © 2026 <span class="font-semibold text-gray-700">Akash Ascent</span>. All rights reserved.
+            </div>
+            <div class="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full font-medium border border-blue-100">
+                <span>💬 For any problem or technical assistance, please call the developer.</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="logout.js"></script>
+    <script src="playlist_dashboard.js"></script>
+</body>
+</html>

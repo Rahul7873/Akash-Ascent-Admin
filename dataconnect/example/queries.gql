@@ -1,0 +1,49 @@
+query ListAllCourses @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public") {
+  courses {
+    id
+    title
+    description
+    price
+    category
+    teacher {
+      displayName
+      email
+    }
+  }
+}
+
+query GetMyEnrollments @auth(level: USER, insecureReason: "This operation is safe to expose to all logged in users.") {
+  enrollments(where: { student: { id_expr: "auth.uid" } }) {
+    id
+    course {
+      title
+      teacher {
+        displayName
+      }
+    }
+    enrolledAt
+    status
+    progress
+  }
+}
+
+mutation EnrollInCourse($courseId: UUID!) @auth(level: USER) {
+  enrollment_insert(data: {
+    course: { id: $courseId },
+    student: { id_expr: "auth.uid" },
+    enrolledAt_expr: "request.time",
+    status: "ENROLLED"
+  })
+}
+
+mutation CreateCourseMaterial($lessonId: UUID!, $materialType: String!, $url: String!, $title: String, $duration: Int, $fileSize: Int64) @auth(level: USER) {
+  courseMaterial_insert(data: {
+    lesson: { id: $lessonId },
+    materialType: $materialType,
+    url: $url,
+    createdAt_expr: "request.time",
+    title: $title,
+    duration: $duration,
+    fileSize: $fileSize
+  })
+}

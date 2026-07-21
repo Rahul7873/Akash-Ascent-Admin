@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akash Ascent - Edit Video</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+    <script src="firebase-init.js"></script>
+    <style>
+        .card-shadow { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
+        .dashed-border { border: 2px dashed #cbd5e1; }
+        .aspect-16-9 {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%;
+        }
+        .aspect-16-9 > * {
+            position: absolute !important;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-stretch justify-start font-sans">
+    <div id="desktop-2" class="bg-white w-full min-h-screen p-6 md:p-12 rounded-none md:rounded-lg card-shadow">
+        <div id="header-section" class="flex flex-col md:flex-row items-start md:items-center gap-4 mb-10">
+            <a id="back-btn" href="all-playlists.html" aria-label="Back" class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 shadow transition">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-gray-700">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+            </a>
+            <div id="logo-container" class="w-12 h-12 bg-white rounded-full flex items-center justify-center overflow-hidden">
+                <img id="main-logo" src="logo.png" alt="Logo" class="w-full h-full object-cover" />
+            </div>
+            <div id="title-container">
+                <h1 id="main-title" class="text-xl font-bold tracking-tight text-gray-800 uppercase">Edit Video</h1>
+                <p id="main-tagline" class="text-xs text-gray-500 italic">Update the selected video for the playlist.</p>
+            </div>
+            <button id="logout-btn" class="ml-auto px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition">Logout</button>
+        </div>
+        <form id="course-form" class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <div id="left-section" class="space-y-6">
+                <div id="video-upload-section" class="w-full aspect-16-9 dashed-border rounded-xl flex items-center justify-center bg-gray-50 overflow-hidden">
+                    <label id="video-upload-label" for="video-upload" class="flex flex-col items-center cursor-pointer w-full h-full justify-center">
+                        <div id="video-upload-inner" class="w-full h-full relative flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400 mb-2 absolute z-10 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" id="video-icon">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12" />
+                            </svg>
+                            <video id="video-preview" class="absolute top-0 left-0 w-full h-full object-cover rounded-xl hidden z-20" style="pointer-events:none;" controls></video>
+                        </div>
+                        <span id="video-upload-text" class="text-gray-400 text-sm z-30">Upload new video file to replace the existing one</span>
+                        <input id="video-upload" name="video-upload" type="file" accept="video/*" class="hidden" onchange="showVideoPreview(event)" />
+                    </label>
+                </div>
+                <div id="title-input-section">
+                    <label id="title-label" class="block text-sm font-bold text-gray-700 mb-1">Title</label>
+                    <input id="title-input" type="text" placeholder="Title here" class="w-full p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
+                </div>
+                <div id="description-input-section">
+                    <label id="description-label" class="block text-sm font-bold text-gray-700 mb-1">Description</label>
+                    <textarea id="description-input" placeholder="Description" class="w-full h-32 p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"></textarea>
+                </div>
+            </div>
+            <div id="right-section" class="space-y-6">
+                <div id="thumbnail-upload-section" class="w-full aspect-16-9 dashed-border rounded-xl flex items-center justify-center bg-gray-50 overflow-hidden">
+                    <label id="thumbnail-upload-label" for="thumbnail-upload" class="flex flex-col items-center cursor-pointer w-full h-full justify-center">
+                        <div id="thumbnail-upload-inner" class="w-full h-full relative flex items-center justify-center">
+                            <img id="thumbnail-preview" src="" alt="Thumbnail Preview" class="absolute top-0 left-0 w-full h-full object-cover rounded-xl hidden z-30" style="pointer-events:auto;" />
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400 mb-2 absolute z-10 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" id="thumbnail-icon">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a4 4 0 004 4h10a4 4 0 004-4V7a4 4 0 00-4-4H7a4 4 0 00-4 4z" />
+                                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none" />
+                            </svg>
+                        </div>
+                        <span id="thumbnail-upload-text" class="text-gray-400 text-sm z-30">Upload new thumbnail photo to replace the existing one</span>
+                        <input id="thumbnail-upload" name="thumbnail-upload" type="file" accept="image/*" class="hidden" onchange="showThumbnailPreview(event)" />
+                    </label>
+                </div>
+                <div class="space-y-6">
+                    <div>
+                        <label for="serial-input" class="block text-sm font-bold text-gray-700 mb-1">Serial no</label>
+                        <input id="serial-input" type="text" placeholder="Serial no. here" class="w-full p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
+                    </div>
+                    <div>
+                        <label for="author-input" class="block text-sm font-bold text-gray-700 mb-1">Author name</label>
+                        <input id="author-input" type="text" placeholder="Author name here" class="w-full p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                        <input id="demo-checkbox" name="demo-checkbox" type="checkbox" class="w-5 h-5 text-amber-600 rounded border-gray-300 focus:ring-amber-500 cursor-pointer shrink-0">
+                        <div>
+                            <label for="demo-checkbox" class="block text-sm font-bold text-gray-800 cursor-pointer">Set as Demo Video</label>
+                            <p class="text-xs text-gray-600">Free demo session video accessible to all users (paid & non-paid).</p>
+                        </div>
+                    </div>
+                    <div id="status-container" class="hidden space-y-2">
+                        <div class="flex justify-between text-xs font-bold text-blue-600">
+                            <span id="status-text">Uploading...</span>
+                            <span id="upload-percentage">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="upload-progress-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+                        <div class="flex flex-col sm:flex-row gap-4 pt-4">
+                        <button type="submit" class="flex-1 py-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 shadow-md font-medium text-sm">UPDATE</button>
+                        <button type="reset" class="flex-1 py-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 shadow-md font-medium text-sm">RESET</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script src="logout.js"></script>
+    <script src="edit-video.js"></script>
+</body>
+</html>
