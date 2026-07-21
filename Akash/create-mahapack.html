@@ -80,7 +80,59 @@
 
                     <div>
                         <label for="mahapack-description" class="block text-sm font-bold text-gray-700 mb-1">Mahapack Description</label>
-                        <textarea id="mahapack-description" name="mahapack-description" rows="5" placeholder="Enter comprehensive description for this Mahapack course bundle..." class="w-full p-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"></textarea>
+                        <textarea id="mahapack-description" name="mahapack-description" rows="4" placeholder="Enter comprehensive description for this Mahapack course bundle..." class="w-full p-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"></textarea>
+                    </div>
+
+                    <!-- Mahapack Duration & Validity Section (End Date Only) -->
+                    <div class="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-5 space-y-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center shadow-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wider">Mahapack Validity / Expiry Date</h3>
+                                <p class="text-xs text-gray-500">Course starts from <b>User Purchase Date</b>. Set annual validity end date & month below.</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label for="duration-end-day" class="block text-xs font-bold text-gray-700 mb-1">End Day</label>
+                                <select id="duration-end-day" name="duration-end-day" class="w-full p-2.5 border border-gray-300 bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium">
+                                    <option value="">Select End Day</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="duration-end-month" class="block text-xs font-bold text-gray-700 mb-1">End Month</label>
+                                <select id="duration-end-month" name="duration-end-month" class="w-full p-2.5 border border-gray-300 bg-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium">
+                                    <option value="">Select End Month</option>
+                                    <option value="January">January</option>
+                                    <option value="February">February</option>
+                                    <option value="March">March</option>
+                                    <option value="April">April</option>
+                                    <option value="May">May</option>
+                                    <option value="June">June</option>
+                                    <option value="July">July</option>
+                                    <option value="August">August</option>
+                                    <option value="September">September</option>
+                                    <option value="October">October</option>
+                                    <option value="November">November</option>
+                                    <option value="December">December</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-gray-600 gap-2 pt-2 border-t border-purple-200/60">
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-bold text-gray-700">Course Validity:</span>
+                                <span id="duration-preview-text" class="font-semibold text-purple-700 bg-purple-100/80 px-2.5 py-0.5 rounded-full border border-purple-200">Not configured</span>
+                            </div>
+                            <div class="text-[11px] text-gray-500 italic">
+                                * Start Date = User Purchase Date
+                            </div>
+                        </div>
                     </div>
                 </div>
 

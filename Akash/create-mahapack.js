@@ -143,6 +143,43 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Populate End Day dropdown 01 to 31 & Duration Preview Handler
+    function populateDayDropdowns() {
+        var endDaySelect = document.getElementById('duration-end-day');
+        if (!endDaySelect) return;
+
+        for (var i = 1; i <= 31; i++) {
+            var dayVal = i < 10 ? '0' + i : '' + i;
+            var opt = document.createElement('option');
+            opt.value = dayVal;
+            opt.textContent = dayVal;
+            endDaySelect.appendChild(opt);
+        }
+    }
+
+    function updateDurationPreview() {
+        var eDay = document.getElementById('duration-end-day') ? document.getElementById('duration-end-day').value : '';
+        var eMonth = document.getElementById('duration-end-month') ? document.getElementById('duration-end-month').value : '';
+        var previewEl = document.getElementById('duration-preview-text');
+
+        if (!previewEl) return;
+
+        if (eDay && eMonth) {
+            previewEl.textContent = 'Valid from purchase date until ' + eDay + ' ' + eMonth;
+        } else {
+            previewEl.textContent = 'Not configured';
+        }
+    }
+
+    populateDayDropdowns();
+
+    ['duration-end-day', 'duration-end-month'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', updateDurationPreview);
+        }
+    });
+
     // 3. Thumbnail Preview Listener
     thumbnailUpload.addEventListener('change', function() {
         var file = thumbnailUpload.files[0];
@@ -169,6 +206,14 @@ document.addEventListener('DOMContentLoaded', function() {
         var description = document.getElementById('mahapack-description').value.trim();
         var selectedClass = courseClassSelect.value;
         var thumbnailFile = thumbnailUpload.files[0];
+
+        var durationEndDay = document.getElementById('duration-end-day') ? document.getElementById('duration-end-day').value : '';
+        var durationEndMonth = document.getElementById('duration-end-month') ? document.getElementById('duration-end-month').value : '';
+
+        var courseDuration = '';
+        if (durationEndDay && durationEndMonth) {
+            courseDuration = 'Valid until ' + durationEndDay + ' ' + durationEndMonth;
+        }
 
         var checkedCheckboxes = playlistsContainer.querySelectorAll('.playlist-checkbox:checked');
         var selectedPlaylistIds = [];
@@ -229,6 +274,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     description: description,
                     price: price,
                     class: selectedClass,
+                    durationEndDay: durationEndDay,
+                    durationEndMonth: durationEndMonth,
+                    courseDuration: courseDuration,
                     thumbnailUrl: thumbnailUrl,
                     isMahapack: true,
                     type: 'mahapack',

@@ -77,6 +77,41 @@ document.addEventListener('DOMContentLoaded', function() {
             thumbnailPreview.src = '';
             thumbnailPreview.classList.add('hidden');
         }
+    // Populate End Day dropdown 01 to 31 & Duration Preview Handler
+    function populateDayDropdowns() {
+        var endDaySelect = document.getElementById('duration-end-day');
+        if (!endDaySelect) return;
+
+        for (var i = 1; i <= 31; i++) {
+            var dayVal = i < 10 ? '0' + i : '' + i;
+            var opt = document.createElement('option');
+            opt.value = dayVal;
+            opt.textContent = dayVal;
+            endDaySelect.appendChild(opt);
+        }
+    }
+
+    function updateDurationPreview() {
+        var eDay = document.getElementById('duration-end-day') ? document.getElementById('duration-end-day').value : '';
+        var eMonth = document.getElementById('duration-end-month') ? document.getElementById('duration-end-month').value : '';
+        var previewEl = document.getElementById('duration-preview-text');
+
+        if (!previewEl) return;
+
+        if (eDay && eMonth) {
+            previewEl.textContent = 'Valid from purchase date until ' + eDay + ' ' + eMonth;
+        } else {
+            previewEl.textContent = 'Not configured';
+        }
+    }
+
+    populateDayDropdowns();
+
+    ['duration-end-day', 'duration-end-month'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', updateDurationPreview);
+        }
     });
 
     playlistForm.addEventListener('submit', function(e) {
@@ -88,6 +123,14 @@ document.addEventListener('DOMContentLoaded', function() {
         var coursePrice = document.getElementById('course-price').value.trim();
         var courseClass = document.getElementById('course-class').value.trim();
         var thumbnailFile = thumbnailUpload.files[0];
+
+        var durationEndDay = document.getElementById('duration-end-day') ? document.getElementById('duration-end-day').value : '';
+        var durationEndMonth = document.getElementById('duration-end-month') ? document.getElementById('duration-end-month').value : '';
+
+        var courseDuration = '';
+        if (durationEndDay && durationEndMonth) {
+            courseDuration = 'Valid until ' + durationEndDay + ' ' + durationEndMonth;
+        }
 
         if (!courseName || !courseDescription || !coursePrice || !courseClass || !thumbnailFile) {
             alert('Please fill all fields and select a thumbnail image.');
@@ -118,20 +161,24 @@ document.addEventListener('DOMContentLoaded', function() {
             uploadTask.snapshot.ref.getDownloadURL().then(function(thumbnailUrl) {
                 uploadStatus.textContent = 'Saving playlist...';
                 var playlistData = {
-                playlistId: playlistId,
-                name: courseName,
-                description: courseDescription,
-                author: courseAuthor,
-                price: coursePrice,
-                class: courseClass,
-                thumbnailUrl: thumbnailUrl,
-                createdAt: firebase.database.ServerValue.TIMESTAMP
-            };
+                    playlistId: playlistId,
+                    name: courseName,
+                    description: courseDescription,
+                    author: courseAuthor,
+                    price: coursePrice,
+                    class: courseClass,
+                    durationEndDay: durationEndDay,
+                    durationEndMonth: durationEndMonth,
+                    courseDuration: courseDuration,
+                    thumbnailUrl: thumbnailUrl,
+                    createdAt: firebase.database.ServerValue.TIMESTAMP
+                };
 
                 return firebase.database().ref('playlists/' + playlistId).set(playlistData);
             }).then(function() {
                 uploadStatus.textContent = 'Playlist created successfully!';
                 playlistForm.reset();
+                updateDurationPreview();
                 thumbnailPreview.src = '';
                 thumbnailPreview.classList.add('hidden');
             }).catch(function(error) {

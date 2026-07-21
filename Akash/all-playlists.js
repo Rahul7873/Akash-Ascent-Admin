@@ -45,6 +45,10 @@ document.addEventListener('DOMContentLoaded', function() {
             ? '<span class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full font-semibold">Included: ' + includedCount + ' Playlists</span>'
             : '';
 
+        var durationBadge = playlist.courseDuration
+            ? '<span class="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-full font-semibold">📅 ' + escapeHtml(playlist.courseDuration) + '</span>'
+            : '';
+
         var authorName = playlist.author || 'Akash Ascent Team';
         var authorHtml = '<p class="mt-2 text-sm text-gray-700 font-semibold flex items-center gap-1"><span class="text-xs text-gray-500 font-normal">Author:</span> ' + escapeHtml(authorName) + '</p>';
 
@@ -58,6 +62,7 @@ document.addEventListener('DOMContentLoaded', function() {
             + '<div class="mt-4 flex flex-wrap gap-2 text-xs text-gray-600">'
             + '<span class="px-3 py-1 bg-gray-100 rounded-full">Class: ' + escapeHtml(playlist.class) + '</span>'
             + '<span class="px-3 py-1 bg-gray-100 rounded-full">Price: ₹' + escapeHtml(playlist.price || '-') + '</span>'
+            + durationBadge
             + mahapackBadge
             + '</div>'
             + '</div>';
