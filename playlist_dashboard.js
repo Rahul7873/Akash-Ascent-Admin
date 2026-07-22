@@ -33,6 +33,40 @@ document.addEventListener('DOMContentLoaded', function () {
             .replace(/'/g, '&#39;');
     }
 
+    function getNumericSerial(video) {
+        if (!video) return Infinity;
+        var s = video.serial || video.serialNumber || video.sn || video.order;
+        if (s === undefined || s === null || s === '') return Infinity;
+        var num = parseFloat(s);
+        if (!isNaN(num)) return num;
+        var match = String(s).match(/\d+/);
+        if (match) return parseInt(match[0], 10);
+        return Infinity;
+    }
+
+    function sortVideosBySerial(videosObj) {
+        var videoKeys = Object.keys(videosObj || {});
+        videoKeys.sort(function (a, b) {
+            var videoA = videosObj[a] || {};
+            var videoB = videosObj[b] || {};
+            var numA = getNumericSerial(videoA);
+            var numB = getNumericSerial(videoB);
+
+            if (numA !== numB) {
+                return numA - numB;
+            }
+
+            var timeA = videoA.createdAt || videoA.timestamp || 0;
+            var timeB = videoB.createdAt || videoB.timestamp || 0;
+            if (timeA !== timeB) {
+                return timeA - timeB;
+            }
+
+            return a.localeCompare(b);
+        });
+        return videoKeys;
+    }
+
     function loadPlaylists() {
         playlistTableBody.innerHTML = '';
         var mahapackContainer = document.getElementById('mahapack-sections-container');
@@ -103,8 +137,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     sectionCard.className = 'bg-white rounded-3xl border border-gray-200 card-shadow overflow-hidden p-6 space-y-4';
 
                     var incVideos = incPlaylist.videos || {};
-                    var incVideoKeys = Object.keys(incVideos);
-                    totalVideos += incVideoKeys.length;
+                    var sortedIncVideoKeys = sortVideosBySerial(incVideos);
+                    totalVideos += sortedIncVideoKeys.length;
 
                     var sectionHeader = document.createElement('div');
                     sectionHeader.className = 'flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-100';
@@ -113,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         + '<img src="' + (incPlaylist.thumbnailUrl || 'logo.png') + '" alt="' + escapeHtml(incPlaylist.name) + '" class="w-14 h-14 object-cover rounded-2xl border border-gray-200 shrink-0" />'
                         + '<div>'
                         + '<h3 class="text-xl font-bold text-gray-900">📚 Section: ' + escapeHtml(incPlaylist.name) + '</h3>'
-                        + '<p class="text-xs text-gray-500 font-medium">Author: ' + escapeHtml(incPlaylist.author || 'Akash Ascent Team') + ' · Price: ₹' + escapeHtml(incPlaylist.price || '-') + ' · ' + incVideoKeys.length + ' video(s)</p>'
+                        + '<p class="text-xs text-gray-500 font-medium">Author: ' + escapeHtml(incPlaylist.author || 'Akash Ascent Team') + ' · Price: ₹' + escapeHtml(incPlaylist.price || '-') + ' · ' + sortedIncVideoKeys.length + ' video(s)</p>'
                         + '</div>'
                         + '</div>'
                         + '<a href="playlist_dashboard.html?playlistId=' + encodeURIComponent(incId) + '&playlistName=' + encodeURIComponent(incPlaylist.name || '') + '" class="px-4 py-2 bg-blue-50 text-blue-600 rounded-full text-xs font-bold hover:bg-blue-100 transition self-start sm:self-center shrink-0">Open Section Dashboard →</a>';
@@ -123,7 +157,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     var tableWrapper = document.createElement('div');
                     tableWrapper.className = 'overflow-x-auto';
 
-                    if (incVideoKeys.length === 0) {
+                    if (sortedIncVideoKeys.length === 0) {
                         tableWrapper.innerHTML = '<div class="py-8 text-center text-sm text-gray-500 italic">No videos added to this section playlist yet.</div>';
                     } else {
                         var table = document.createElement('table');
@@ -142,7 +176,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         var tbody = document.createElement('tbody');
                         tbody.className = 'bg-white divide-y divide-gray-200';
 
-                        incVideoKeys.forEach(function (vId) {
+                        sortedIncVideoKeys.forEach(function (vId) {
                             var vData = incVideos[vId];
                             tbody.appendChild(createVideoRow(vId, vData, incId));
                         });
@@ -169,11 +203,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 var videos = playlist.videos || {};
                 playlistTableBody.innerHTML = '';
-                var hasVideos = false;
-                Object.keys(videos).forEach(function (videoId) {
+                var sortedVideoKeys = sortVideosBySerial(videos);
+                var hasVideos = sortedVideoKeys.length > 0;
+
+                sortedVideoKeys.forEach(function (videoId) {
                     var video = videos[videoId];
                     playlistTableBody.appendChild(createVideoRow(videoId, video, selectedPlaylistId));
-                    hasVideos = true;
                 });
 
                 if (!hasVideos) {
@@ -183,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     emptyState.classList.remove('hidden');
                 }
 
-                showStatus('Showing playlist "' + displayName + '" with ' + (hasVideos ? Object.keys(videos).length : 0) + ' video(s).');
+                showStatus('Showing playlist "' + displayName + '" with ' + (hasVideos ? sortedVideoKeys.length : 0) + ' video(s) (Sorted by Serial Number).');
             }
         }).catch(function (error) {
             console.error('Fetch playlist failed:', error);
