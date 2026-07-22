@@ -31,9 +31,23 @@
                 <a href="Dashboard.html" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition">Back</a>
                 <button id="logout-btn" class="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition">Logout</button>
             </div>
+        <!-- Temporarily Unavailable Maintenance Banner -->
+        <div id="maintenance-banner" class="mb-8 p-6 bg-amber-50 border-2 border-amber-300 rounded-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-2xl shrink-0 shadow-md">
+                    ⚠️
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-amber-900">Send Notification Service is Temporarily Not Available</h3>
+                    <p class="text-xs text-amber-700 mt-1">Push notification dispatches are currently paused due to system maintenance. Please check back later.</p>
+                </div>
+            </div>
+            <span class="px-4 py-2 bg-amber-200 text-amber-900 font-bold text-xs rounded-full border border-amber-400 shrink-0">
+                🚧 Under Maintenance
+            </span>
         </div>
 
-        <form id="notification-form" class="space-y-8">
+        <form id="notification-form" class="space-y-8 opacity-75">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 
                 <!-- Left Column: Notification Content, Time Settings & Submit -->
@@ -153,9 +167,9 @@
 
                     <!-- Submit Button -->
                     <div class="pt-2 flex flex-col gap-2">
-                        <div id="upload-status" class="text-sm font-medium text-gray-600"></div>
-                        <button type="submit" id="submit-btn" class="w-full py-3.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition font-semibold text-base shadow-md flex items-center justify-center gap-2">
-                            <span>Send Notification</span>
+                        <div id="upload-status" class="text-sm font-medium text-amber-700 font-semibold">⚠️ Service is temporarily not available due to maintenance.</div>
+                        <button type="submit" id="submit-btn" disabled class="w-full py-3.5 bg-gray-400 text-white rounded-xl cursor-not-allowed font-semibold text-base shadow-sm flex items-center justify-center gap-2 opacity-75">
+                            <span>⚠️ Temporarily Not Available</span>
                         </button>
                     </div>
                 </div>

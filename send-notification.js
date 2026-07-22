@@ -162,6 +162,11 @@ document.addEventListener('DOMContentLoaded', function() {
     notificationForm.addEventListener('submit', function(e) {
         e.preventDefault();
 
+        if (submitBtn && submitBtn.disabled) {
+            alert('Send Notification service is temporarily unavailable due to system maintenance.');
+            return;
+        }
+
         var title = notifTitleInput.value.trim();
         var message = notifMessageInput.value.trim();
         var audience = targetAudienceSelect.value;
