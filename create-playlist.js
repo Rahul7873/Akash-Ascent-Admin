@@ -77,6 +77,7 @@ document.addEventListener('DOMContentLoaded', function() {
             thumbnailPreview.src = '';
             thumbnailPreview.classList.add('hidden');
         }
+    });
     // Populate End Day dropdown 01 to 31 & Duration Preview Handler
     function populateDayDropdowns() {
         var endDaySelect = document.getElementById('duration-end-day');

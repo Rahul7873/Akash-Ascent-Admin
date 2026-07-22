@@ -13,7 +13,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <!-- Firebase Storage -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
-    <script src="firebase-init.js"></script>
+    <script type="module" src="firebase-init.js"></script>
     <style>
         .card-shadow { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
         .dashed-border { border: 2px dashed #cbd5e1; }
@@ -121,6 +121,6 @@ if (!sessionStorage.getItem('loggedIn')) {
     window.location.href = 'login.html';
 }
 </script>
-<script src="logout.js"></script>
-<script src="main.js"></script>
+<script type="module" src="logout.js"></script>
+<script type="module" src="main.js"></script>
 </html>
