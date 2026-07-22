@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function flattenUserData(userData) {
         var flattened = {};
         Object.keys(userData || {}).forEach(function(key) {
+            if (key === 'notifications' || key === 'notification') return;
             var value = userData[key];
             if (isObject(value)) {
                 flattened[key] = JSON.stringify(value);
@@ -94,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var userData = flattenUserData(rawData);
             rows.push({ key: key, data: userData });
             Object.keys(userData).forEach(function(field) {
-                if (!columnMap.has(field)) {
+                if (field !== 'notifications' && field !== 'notification' && !columnMap.has(field)) {
                     columnMap.set(field, {
                         key: field,
                         label: labelizeField(field)
