@@ -346,4 +346,251 @@ document.addEventListener('DOMContentLoaded', function() {
             dispatchNotification('');
         }
     });
+
+    // 6. Notifications Dashboard Handler (Live updates, Resend, Delete)
+    var dashboardList = document.getElementById('notifications-dashboard-list');
+    var countBadge = document.getElementById('notif-count-badge');
+
+    function formatAudience(audience) {
+        if (!audience || audience === 'android_all') return '📱 Android App Users';
+        if (audience === 'all') return '🌐 All Users';
+        if (audience.startsWith('class_')) return '📚 Class ' + audience.replace('class_', '');
+        return audience;
+    }
+
+    function formatTime(timestamp) {
+        if (!timestamp) return 'Just now';
+        var d = new Date(timestamp);
+        if (isNaN(d.getTime())) return '';
+        var diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
+        if (diffSec < 60) return 'Just now';
+        if (diffSec < 3600) return Math.floor(diffSec / 60) + 'm ago';
+        if (diffSec < 86400) return Math.floor(diffSec / 3600) + 'h ago';
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Attach real-time listener for broadcast_notifications
+    firebase.database().ref('broadcast_notifications').on('value', function(snapshot) {
+        if (!dashboardList) return;
+        dashboardList.innerHTML = '';
+
+        if (!snapshot.exists()) {
+            if (countBadge) countBadge.textContent = '0';
+            dashboardList.innerHTML = `
+                <div class="text-center py-8 text-xs text-gray-500 bg-white rounded-xl border border-dashed border-gray-200 p-4">
+                    <p class="font-medium text-gray-700">No notifications sent yet</p>
+                    <p class="mt-1 text-[11px] text-gray-400">Created notifications will appear here for review, resending, or deleting.</p>
+                </div>
+            `;
+            return;
+        }
+
+        var notifsObj = snapshot.val();
+        var keys = Object.keys(notifsObj || {});
+        if (countBadge) countBadge.textContent = keys.length;
+
+        var items = [];
+        keys.forEach(function(k) {
+            var item = notifsObj[k];
+            item._key = k;
+            items.push(item);
+        });
+
+        // Sort descending by createdAt or scheduledTime
+        items.sort(function(a, b) {
+            var timeA = a.createdAt || a.scheduledTime || 0;
+            var timeB = b.createdAt || b.scheduledTime || 0;
+            return timeB - timeA;
+        });
+
+        items.forEach(function(notif) {
+            var isScheduled = notif.status === 'scheduled';
+            var timeLabel = isScheduled ? 'Scheduled: ' + formatTime(notif.scheduledTime) : formatTime(notif.createdAt || notif.sentAt);
+
+            var card = document.createElement('div');
+            card.className = 'bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 hover:border-amber-300 transition space-y-2.5';
+            
+            var photoHTML = notif.photoUrl ? `
+                <div class="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0 border border-gray-200">
+                    <img src="${notif.photoUrl}" alt="Thumbnail" class="w-full h-full object-cover" />
+                </div>
+            ` : '';
+
+            card.innerHTML = `
+                <div class="flex items-center justify-between gap-2 text-xs">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="px-2 py-0.5 rounded-full font-bold text-[10px] uppercase ${isScheduled ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'}">
+                            ${isScheduled ? '⏳ Scheduled' : '✓ Sent'}
+                        </span>
+                        <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-gray-100 text-gray-700">
+                            ${formatAudience(notif.targetAudience)}
+                        </span>
+                    </div>
+                    <span class="text-[11px] text-gray-400 font-medium shrink-0">${timeLabel}</span>
+                </div>
+                <div class="flex items-start gap-3">
+                    ${photoHTML}
+                    <div class="min-w-0 flex-1">
+                        <h4 class="text-xs font-bold text-gray-900 leading-snug truncate" title="${notif.title || ''}">${notif.title || 'Untitled Notification'}</h4>
+                        <p class="text-[11px] text-gray-600 mt-0.5 line-clamp-2 leading-relaxed" title="${notif.message || ''}">${notif.message || ''}</p>
+                    </div>
+                </div>
+                <div class="pt-2 border-t border-gray-100 flex items-center justify-end gap-2">
+                    <button type="button" class="resend-notif-btn px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-semibold transition flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        <span>Resend</span>
+                    </button>
+                    <button type="button" class="delete-notif-btn px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-semibold transition flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        <span>Delete</span>
+                    </button>
+                </div>
+            `;
+
+            var resendBtn = card.querySelector('.resend-notif-btn');
+            var deleteBtn = card.querySelector('.delete-notif-btn');
+
+            if (resendBtn) {
+                resendBtn.addEventListener('click', function() {
+                    handleResendNotification(notif);
+                });
+            }
+
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', function() {
+                    handleDeleteNotification(notif);
+                });
+            }
+
+            dashboardList.appendChild(card);
+        });
+    });
+
+    function handleResendNotification(notif) {
+        if (!confirm('Are you sure you want to RESEND this notification now?\n\nTitle: "' + (notif.title || '') + '"')) {
+            return;
+        }
+
+        showStatus('Resending notification...');
+        var newNotifId = 'notif_' + Date.now();
+        var nowMs = Date.now();
+
+        var notificationPayload = {
+            notificationId: newNotifId,
+            title: notif.title || '',
+            message: notif.message || '',
+            photoUrl: notif.photoUrl || '',
+            targetAudience: notif.targetAudience || 'android_all',
+            sendMode: 'now',
+            scheduledTime: nowMs,
+            status: 'sent',
+            createdAt: firebase.database.ServerValue.TIMESTAMP,
+            sentAt: firebase.database.ServerValue.TIMESTAMP
+        };
+
+        firebase.database().ref('broadcast_notifications/' + newNotifId).set(notificationPayload)
+        .then(function() {
+            return firebase.database().ref('users').once('value');
+        })
+        .then(function(snapshot) {
+            var users = snapshot.val() || {};
+            var updates = {};
+            var audience = notif.targetAudience || 'android_all';
+
+            Object.keys(users).forEach(function(userId) {
+                var user = users[userId];
+                if (!user) return;
+
+                var isMatch = false;
+                if (audience === 'all' || audience === 'android_all') {
+                    isMatch = true;
+                } else if (audience.startsWith('class_')) {
+                    var targetClass = audience.replace('class_', '');
+                    if (user.class === targetClass || user.preferenceClass === targetClass || user.courseClass === targetClass) {
+                        isMatch = true;
+                    }
+                }
+
+                if (isMatch) {
+                    updates['users/' + userId + '/notifications/' + newNotifId] = {
+                        title: notif.title || '',
+                        message: notif.message || '',
+                        photoUrl: notif.photoUrl || '',
+                        notifId: newNotifId,
+                        type: 'broadcast',
+                        platform: 'android',
+                        status: 'sent',
+                        scheduledTime: nowMs,
+                        read: false,
+                        createdAt: nowMs
+                    };
+                }
+            });
+
+            if (Object.keys(updates).length > 0) {
+                return firebase.database().ref().update(updates);
+            }
+        })
+        .then(function() {
+            if (firebase.functions) {
+                try {
+                    var sendFCM = firebase.functions().httpsCallable('sendAndroidFCMNotification');
+                    sendFCM({
+                        title: notif.title || '',
+                        message: notif.message || '',
+                        photoUrl: notif.photoUrl || '',
+                        targetAudience: notif.targetAudience || 'android_all'
+                    });
+                } catch (e) {
+                    console.warn('FCM Push warning:', e);
+                }
+            }
+        })
+        .then(function() {
+            showStatus('✅ Notification resent successfully!');
+            alert('Notification resent successfully!');
+        })
+        .catch(function(err) {
+            console.error('Resend failed:', err);
+            showStatus('Failed to resend notification.');
+            alert('Failed to resend notification.');
+        });
+    }
+
+    function handleDeleteNotification(notif) {
+        var key = notif._key || notif.notificationId;
+        if (!key) return;
+
+        if (!confirm('Are you sure you want to DELETE this notification?\n\nTitle: "' + (notif.title || '') + '"\n\nThis will remove it permanently.')) {
+            return;
+        }
+
+        showStatus('Deleting notification...');
+
+        firebase.database().ref('broadcast_notifications/' + key).remove()
+        .then(function() {
+            return firebase.database().ref('users').once('value');
+        })
+        .then(function(snapshot) {
+            var users = snapshot.val() || {};
+            var updates = {};
+            Object.keys(users).forEach(function(userId) {
+                if (users[userId] && users[userId].notifications && users[userId].notifications[key]) {
+                    updates['users/' + userId + '/notifications/' + key] = null;
+                }
+            });
+
+            if (Object.keys(updates).length > 0) {
+                return firebase.database().ref().update(updates);
+            }
+        })
+        .then(function() {
+            showStatus('🗑️ Notification deleted successfully!');
+        })
+        .catch(function(err) {
+            console.error('Delete notification failed:', err);
+            showStatus('Failed to delete notification.');
+            alert('Failed to delete notification.');
+        });
+    }
 });

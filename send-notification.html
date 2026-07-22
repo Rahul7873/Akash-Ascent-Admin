@@ -36,7 +36,7 @@
         <form id="notification-form" class="space-y-8">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 
-                <!-- Left Column: Notification Content & Time Settings -->
+                <!-- Left Column: Notification Content, Time Settings & Submit -->
                 <div class="space-y-6">
                     <!-- Photo Upload -->
                     <div>
@@ -75,10 +75,7 @@
                             <option value="all">🌐 All Registered Users & Devices</option>
                         </select>
                     </div>
-                </div>
 
-                <!-- Right Column: Send Time Configuration & Live Preview -->
-                <div class="space-y-6">
                     <!-- Send Time Selection Card -->
                     <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-6 space-y-4">
                         <div class="flex items-center gap-2">
@@ -154,6 +151,17 @@
                         </div>
                     </div>
 
+                    <!-- Submit Button -->
+                    <div class="pt-2 flex flex-col gap-2">
+                        <div id="upload-status" class="text-sm font-medium text-gray-600"></div>
+                        <button type="submit" id="submit-btn" class="w-full py-3.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition font-semibold text-base shadow-md flex items-center justify-center gap-2">
+                            <span>Send Notification</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Column: Live Mobile Preview & Notifications Dashboard -->
+                <div class="space-y-6">
                     <!-- Live Notification Card Preview -->
                     <div class="space-y-2">
                         <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider">Live Mobile Preview</label>
@@ -173,16 +181,28 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Previous Notifications Dashboard -->
+                    <div class="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4">
+                        <div class="flex items-center justify-between pb-3 border-b border-gray-200">
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                                    <span>📊 Notifications Dashboard</span>
+                                </h3>
+                                <p class="text-xs text-gray-500">History of sent and scheduled notifications</p>
+                            </div>
+                            <span id="notif-count-badge" class="bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-0.5 rounded-full text-xs font-bold">0</span>
+                        </div>
+
+                        <!-- Notification List Container -->
+                        <div id="notifications-dashboard-list" class="max-h-[500px] overflow-y-auto space-y-3 pr-1">
+                            <div id="dashboard-loading" class="text-center py-6 text-xs text-gray-500">
+                                Loading notifications dashboard...
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-            </div>
-
-            <!-- Submit Section -->
-            <div class="pt-6 border-t border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div id="upload-status" class="text-sm font-medium text-gray-600"></div>
-                <button type="submit" id="submit-btn" class="px-8 py-3.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition font-semibold text-base shadow-md flex items-center justify-center gap-2">
-                    <span>Send Notification</span>
-                </button>
             </div>
         </form>
 
