@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // 1. Session Check
     if (!sessionStorage.getItem('loggedIn')) {
         window.location.href = 'login.html';
@@ -43,11 +43,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 2. Populate Preference Classes into Target Audience Dropdown
-    firebase.database().ref('preferences').once('value').then(function(snapshot) {
+    firebase.database().ref('preferences').once('value').then(function (snapshot) {
         if (!targetAudienceSelect || !snapshot.exists()) return;
 
         var preferences = snapshot.val();
-        Object.keys(preferences).forEach(function(prefId) {
+        Object.keys(preferences).forEach(function (prefId) {
             var pref = preferences[prefId];
             var classes = pref.classes || {};
             var classKeys = Object.keys(classes);
@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var optgroup = document.createElement('optgroup');
                 optgroup.label = 'Class: ' + pref.name;
 
-                classKeys.forEach(function(classId) {
+                classKeys.forEach(function (classId) {
                     var option = document.createElement('option');
                     option.value = 'class_' + classes[classId].name;
                     option.textContent = '📚 Class ' + classes[classId].name + ' Users';
@@ -66,16 +66,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 targetAudienceSelect.appendChild(optgroup);
             }
         });
-    }).catch(function(err) {
+    }).catch(function (err) {
         console.error('Failed to load classes for audience:', err);
     });
 
     // 3. Photo Preview and Live Card Preview Listeners
-    photoUpload.addEventListener('change', function() {
+    photoUpload.addEventListener('change', function () {
         var file = photoUpload.files[0];
         if (file) {
             var reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 photoPreview.src = e.target.result;
                 photoPreview.classList.remove('hidden');
 
@@ -92,11 +92,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    notifTitleInput.addEventListener('input', function() {
+    notifTitleInput.addEventListener('input', function () {
         previewTitleText.textContent = notifTitleInput.value.trim() || 'Notification Title';
     });
 
-    notifMessageInput.addEventListener('input', function() {
+    notifMessageInput.addEventListener('input', function () {
         previewMessageText.textContent = notifMessageInput.value.trim() || 'Notification message will appear here...';
     });
 
@@ -144,7 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     var sendModeRadios = document.getElementsByName('send-mode');
-    sendModeRadios.forEach(function(radio) {
+    sendModeRadios.forEach(function (radio) {
         radio.addEventListener('change', updateSendModeUI);
     });
 
@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSendModeUI();
 
     // 5. Form Submission Handler
-    notificationForm.addEventListener('submit', function(e) {
+    notificationForm.addEventListener('submit', function (e) {
         e.preventDefault();
 
         if (submitBtn && submitBtn.disabled) {
@@ -239,11 +239,11 @@ document.addEventListener('DOMContentLoaded', function() {
             ];
 
             // 2. Fetch users and dispatch directly if immediate or targeted
-            firebase.database().ref('users').once('value').then(function(snapshot) {
+            firebase.database().ref('users').once('value').then(function (snapshot) {
                 var users = snapshot.val() || {};
                 var updates = {};
 
-                Object.keys(users).forEach(function(userId) {
+                Object.keys(users).forEach(function (userId) {
                     var user = users[userId];
                     if (!user) return;
 
@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (Object.keys(updates).length > 0) {
                     return firebase.database().ref().update(updates);
                 }
-            }).then(function() {
+            }).then(function () {
                 // Call Firebase Functions FCM push notification endpoint for Android devices
                 if (isImmediate && firebase.functions) {
                     try {
@@ -286,18 +286,18 @@ document.addEventListener('DOMContentLoaded', function() {
                             message: message,
                             photoUrl: photoUrl || '',
                             targetAudience: audience
-                        }).then(function(res) {
+                        }).then(function (res) {
                             console.log('FCM Push Result:', res.data);
-                        }).catch(function(err) {
+                        }).catch(function (err) {
                             console.warn('FCM Push Cloud Function call warning:', err);
                         });
                     } catch (e) {
                         console.warn('Functions SDK warning:', e);
                     }
                 }
-            }).then(function() {
-                var successMsg = isImmediate 
-                    ? '✅ Notification sent & pushed to Android phones!' 
+            }).then(function () {
+                var successMsg = isImmediate
+                    ? '✅ Notification sent & pushed to Android phones!'
                     : '📅 Notification scheduled successfully for ' + new Date(scheduledTimeMs).toLocaleString() + '!';
 
                 showStatus(successMsg);
@@ -316,7 +316,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = '<span>Send Notification</span>';
                 }
-            }).catch(function(error) {
+            }).catch(function (error) {
                 console.error('Notification dispatch failed:', error);
                 showStatus('Failed to send notification. Check console for details.');
                 if (submitBtn) {
@@ -332,17 +332,17 @@ document.addEventListener('DOMContentLoaded', function() {
             var photoRef = storageRef.child('notifications/photos/' + notifId + '_' + photoFile.name);
             var uploadTask = photoRef.put(photoFile);
 
-            uploadTask.on('state_changed', function(snapshot) {
+            uploadTask.on('state_changed', function (snapshot) {
                 var progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
                 showStatus('Uploading photo: ' + progress + '%');
-            }, function(error) {
+            }, function (error) {
                 console.error('Photo upload error:', error);
                 showStatus('Photo upload failed. Proceeding without image...');
                 dispatchNotification('');
-            }, function() {
-                uploadTask.snapshot.ref.getDownloadURL().then(function(photoUrl) {
+            }, function () {
+                uploadTask.snapshot.ref.getDownloadURL().then(function (photoUrl) {
                     dispatchNotification(photoUrl);
-                }).catch(function(err) {
+                }).catch(function (err) {
                     console.error('Get photo URL error:', err);
                     dispatchNotification('');
                 });
@@ -375,7 +375,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Attach real-time listener for broadcast_notifications
-    firebase.database().ref('broadcast_notifications').on('value', function(snapshot) {
+    firebase.database().ref('broadcast_notifications').on('value', function (snapshot) {
         if (!dashboardList) return;
         dashboardList.innerHTML = '';
 
@@ -395,26 +395,26 @@ document.addEventListener('DOMContentLoaded', function() {
         if (countBadge) countBadge.textContent = keys.length;
 
         var items = [];
-        keys.forEach(function(k) {
+        keys.forEach(function (k) {
             var item = notifsObj[k];
             item._key = k;
             items.push(item);
         });
 
         // Sort descending by createdAt or scheduledTime
-        items.sort(function(a, b) {
+        items.sort(function (a, b) {
             var timeA = a.createdAt || a.scheduledTime || 0;
             var timeB = b.createdAt || b.scheduledTime || 0;
             return timeB - timeA;
         });
 
-        items.forEach(function(notif) {
+        items.forEach(function (notif) {
             var isScheduled = notif.status === 'scheduled';
             var timeLabel = isScheduled ? 'Scheduled: ' + formatTime(notif.scheduledTime) : formatTime(notif.createdAt || notif.sentAt);
 
             var card = document.createElement('div');
             card.className = 'bg-white rounded-xl border border-gray-200 shadow-sm p-3.5 hover:border-amber-300 transition space-y-2.5';
-            
+
             var photoHTML = notif.photoUrl ? `
                 <div class="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0 border border-gray-200">
                     <img src="${notif.photoUrl}" alt="Thumbnail" class="w-full h-full object-cover" />
@@ -456,13 +456,13 @@ document.addEventListener('DOMContentLoaded', function() {
             var deleteBtn = card.querySelector('.delete-notif-btn');
 
             if (resendBtn) {
-                resendBtn.addEventListener('click', function() {
+                resendBtn.addEventListener('click', function () {
                     handleResendNotification(notif);
                 });
             }
 
             if (deleteBtn) {
-                deleteBtn.addEventListener('click', function() {
+                deleteBtn.addEventListener('click', function () {
                     handleDeleteNotification(notif);
                 });
             }
@@ -494,72 +494,72 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         firebase.database().ref('broadcast_notifications/' + newNotifId).set(notificationPayload)
-        .then(function() {
-            return firebase.database().ref('users').once('value');
-        })
-        .then(function(snapshot) {
-            var users = snapshot.val() || {};
-            var updates = {};
-            var audience = notif.targetAudience || 'android_all';
+            .then(function () {
+                return firebase.database().ref('users').once('value');
+            })
+            .then(function (snapshot) {
+                var users = snapshot.val() || {};
+                var updates = {};
+                var audience = notif.targetAudience || 'android_all';
 
-            Object.keys(users).forEach(function(userId) {
-                var user = users[userId];
-                if (!user) return;
+                Object.keys(users).forEach(function (userId) {
+                    var user = users[userId];
+                    if (!user) return;
 
-                var isMatch = false;
-                if (audience === 'all' || audience === 'android_all') {
-                    isMatch = true;
-                } else if (audience.startsWith('class_')) {
-                    var targetClass = audience.replace('class_', '');
-                    if (user.class === targetClass || user.preferenceClass === targetClass || user.courseClass === targetClass) {
+                    var isMatch = false;
+                    if (audience === 'all' || audience === 'android_all') {
                         isMatch = true;
+                    } else if (audience.startsWith('class_')) {
+                        var targetClass = audience.replace('class_', '');
+                        if (user.class === targetClass || user.preferenceClass === targetClass || user.courseClass === targetClass) {
+                            isMatch = true;
+                        }
+                    }
+
+                    if (isMatch) {
+                        updates['users/' + userId + '/notifications/' + newNotifId] = {
+                            title: notif.title || '',
+                            message: notif.message || '',
+                            photoUrl: notif.photoUrl || '',
+                            notifId: newNotifId,
+                            type: 'broadcast',
+                            platform: 'android',
+                            status: 'sent',
+                            scheduledTime: nowMs,
+                            read: false,
+                            createdAt: nowMs
+                        };
+                    }
+                });
+
+                if (Object.keys(updates).length > 0) {
+                    return firebase.database().ref().update(updates);
+                }
+            })
+            .then(function () {
+                if (firebase.functions) {
+                    try {
+                        var sendFCM = firebase.functions().httpsCallable('sendAndroidFCMNotification');
+                        sendFCM({
+                            title: notif.title || '',
+                            message: notif.message || '',
+                            photoUrl: notif.photoUrl || '',
+                            targetAudience: notif.targetAudience || 'android_all'
+                        });
+                    } catch (e) {
+                        console.warn('FCM Push warning:', e);
                     }
                 }
-
-                if (isMatch) {
-                    updates['users/' + userId + '/notifications/' + newNotifId] = {
-                        title: notif.title || '',
-                        message: notif.message || '',
-                        photoUrl: notif.photoUrl || '',
-                        notifId: newNotifId,
-                        type: 'broadcast',
-                        platform: 'android',
-                        status: 'sent',
-                        scheduledTime: nowMs,
-                        read: false,
-                        createdAt: nowMs
-                    };
-                }
+            })
+            .then(function () {
+                showStatus('✅ Notification resent successfully!');
+                alert('Notification resent successfully!');
+            })
+            .catch(function (err) {
+                console.error('Resend failed:', err);
+                showStatus('Failed to resend notification.');
+                alert('Failed to resend notification.');
             });
-
-            if (Object.keys(updates).length > 0) {
-                return firebase.database().ref().update(updates);
-            }
-        })
-        .then(function() {
-            if (firebase.functions) {
-                try {
-                    var sendFCM = firebase.functions().httpsCallable('sendAndroidFCMNotification');
-                    sendFCM({
-                        title: notif.title || '',
-                        message: notif.message || '',
-                        photoUrl: notif.photoUrl || '',
-                        targetAudience: notif.targetAudience || 'android_all'
-                    });
-                } catch (e) {
-                    console.warn('FCM Push warning:', e);
-                }
-            }
-        })
-        .then(function() {
-            showStatus('✅ Notification resent successfully!');
-            alert('Notification resent successfully!');
-        })
-        .catch(function(err) {
-            console.error('Resend failed:', err);
-            showStatus('Failed to resend notification.');
-            alert('Failed to resend notification.');
-        });
     }
 
     function handleDeleteNotification(notif) {
@@ -573,29 +573,29 @@ document.addEventListener('DOMContentLoaded', function() {
         showStatus('Deleting notification...');
 
         firebase.database().ref('broadcast_notifications/' + key).remove()
-        .then(function() {
-            return firebase.database().ref('users').once('value');
-        })
-        .then(function(snapshot) {
-            var users = snapshot.val() || {};
-            var updates = {};
-            Object.keys(users).forEach(function(userId) {
-                if (users[userId] && users[userId].notifications && users[userId].notifications[key]) {
-                    updates['users/' + userId + '/notifications/' + key] = null;
-                }
-            });
+            .then(function () {
+                return firebase.database().ref('users').once('value');
+            })
+            .then(function (snapshot) {
+                var users = snapshot.val() || {};
+                var updates = {};
+                Object.keys(users).forEach(function (userId) {
+                    if (users[userId] && users[userId].notifications && users[userId].notifications[key]) {
+                        updates['users/' + userId + '/notifications/' + key] = null;
+                    }
+                });
 
-            if (Object.keys(updates).length > 0) {
-                return firebase.database().ref().update(updates);
-            }
-        })
-        .then(function() {
-            showStatus('🗑️ Notification deleted successfully!');
-        })
-        .catch(function(err) {
-            console.error('Delete notification failed:', err);
-            showStatus('Failed to delete notification.');
-            alert('Failed to delete notification.');
-        });
+                if (Object.keys(updates).length > 0) {
+                    return firebase.database().ref().update(updates);
+                }
+            })
+            .then(function () {
+                showStatus('🗑️ Notification deleted successfully!');
+            })
+            .catch(function (err) {
+                console.error('Delete notification failed:', err);
+                showStatus('Failed to delete notification.');
+                alert('Failed to delete notification.');
+            });
     }
 });

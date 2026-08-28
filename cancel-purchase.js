@@ -162,6 +162,24 @@ document.addEventListener('DOMContentLoaded', function () {
         return value && typeof value === 'object' && !Array.isArray(value);
     }
 
+    function isExcludedField(key) {
+        if (!key) return false;
+        var k = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+        var excludedList = [
+            'login',
+            'createdat',
+            'goalid',
+            'goal',
+            'goalname',
+            'lastlogin',
+            'selectedclassid',
+            'selectedclass',
+            'classid',
+            'uid'
+        ];
+        return excludedList.indexOf(k) !== -1;
+    }
+
     function flattenUserData(userData) {
         var flattened = {};
         var ignoreKeys = [
@@ -174,7 +192,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ];
 
         Object.keys(userData || {}).forEach(function (key) {
-            if (ignoreKeys.indexOf(key) !== -1) return;
+            if (ignoreKeys.indexOf(key) !== -1 || isExcludedField(key)) return;
             var value = userData[key];
             if (isObject(value)) {
                 return;
@@ -577,7 +595,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var userData = flattenUserData(rawData);
             rows.push({ key: key, data: userData, raw: rawData });
             Object.keys(userData).forEach(function (field) {
-                if (field !== 'notifications' && field !== 'notification' && !columnMap.has(field)) {
+                if (field !== 'notifications' && field !== 'notification' && !isExcludedField(field) && !columnMap.has(field)) {
                     columnMap.set(field, {
                         key: field,
                         label: labelizeField(field)
@@ -590,7 +608,7 @@ document.addEventListener('DOMContentLoaded', function () {
         columnMap.set('purchasedCourses', { key: 'purchasedCourses', label: 'Purchased Courses' });
 
         // Ensure common fields appear first, including Purchased Courses
-        var preferredFields = ['userId', 'firstName', 'lastName', 'username', 'email', 'phoneNumber', 'phone', 'purchasedCourses', 'login', 'createdAt'];
+        var preferredFields = ['userId', 'firstName', 'lastName', 'username', 'email', 'phoneNumber', 'phone', 'purchasedCourses'];
         var columns = [];
         preferredFields.forEach(function (field) {
             if (columnMap.has(field)) {

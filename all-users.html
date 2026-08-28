@@ -52,6 +52,54 @@
             </div>
         </div>
 
+        <!-- Direct Purchase Management & Cancellation Modal -->
+        <div id="purchases-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden p-4">
+            <div class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 card-shadow flex flex-col gap-6 max-h-[90vh] overflow-hidden relative border border-gray-100">
+                <!-- Modal Header -->
+                <div class="flex items-start justify-between border-b border-gray-100 pb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl font-bold">
+                            🛒
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-900" id="modal-user-name">User Purchases</h3>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-xs text-gray-500 font-mono" id="modal-user-id">User ID: -</span>
+                                <span class="text-xs px-2.5 py-0.5 bg-gray-100 text-gray-600 rounded-full font-medium" id="modal-user-contact">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="close-modal-btn" type="button" class="p-2 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition cursor-pointer">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Modal Content Body -->
+                <div id="modal-purchases-container" class="overflow-y-auto max-h-[45vh] flex flex-col gap-4 pr-1">
+                    <!-- Dynamic purchase items loaded via JS -->
+                </div>
+
+                <!-- Manual Course ID Cancellation Card -->
+                <div class="p-4 bg-gray-50 rounded-2xl border border-gray-200 flex flex-col gap-2">
+                    <label class="text-xs font-bold text-gray-700 uppercase tracking-wider">Cancel Course by ID</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="manual-course-id-input" placeholder="Course ID (e.g. -O123456)" class="flex-1 px-3.5 py-2 text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white" />
+                        <button id="manual-cancel-btn" type="button" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs rounded-xl shadow-sm transition shrink-0 cursor-pointer">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <div class="text-xs text-gray-500" id="modal-status-msg">Select a purchase to cancel directly.</div>
+                    <button id="close-modal-bottom-btn" type="button" class="px-5 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-full hover:bg-gray-200 transition text-sm cursor-pointer">Close</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Footer Section -->
         <footer id="footer-section" class="mt-auto pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
             <div>

@@ -25,7 +25,8 @@ export default defineConfig({
         editPlaylist: resolve(__dirname, 'edit-playlist.html'),
         editVideo: resolve(__dirname, 'edit-video.html'),
         playlistDashboard: resolve(__dirname, 'playlist_dashboard.html'),
-        desktop2: resolve(__dirname, 'desktop2.html')
+        desktop2: resolve(__dirname, 'desktop2.html'),
+        cancelPurchase: resolve(__dirname, 'cancel-purchase.html')
       }
     }
   }

@@ -15,14 +15,84 @@ document.addEventListener('DOMContentLoaded', function() {
     var dateFilterInput = document.getElementById('date-filter');
     var clearFilterBtn = document.getElementById('clear-filter-btn');
 
+    // Modal DOM Elements
+    var purchasesModal = document.getElementById('purchases-modal');
+    var closeModalBtn = document.getElementById('close-modal-btn');
+    var closeModalBottomBtn = document.getElementById('close-modal-bottom-btn');
+    var modalUserName = document.getElementById('modal-user-name');
+    var modalUserId = document.getElementById('modal-user-id');
+    var modalUserContact = document.getElementById('modal-user-contact');
+    var modalPurchasesContainer = document.getElementById('modal-purchases-container');
+    var modalStatusMsg = document.getElementById('modal-status-msg');
+    var manualCourseIdInput = document.getElementById('manual-course-id-input');
+    var manualCancelBtn = document.getElementById('manual-cancel-btn');
+
     var rawUsersData = {};
-    var currentFilterMode = '24h'; // '24h', 'date', 'all'
+    var playlistsCache = {};
+    var coursesCache = {};
+    var currentFilterMode = '24h';
     var selectedDateString = '';
+    var currentSelectedUserKey = null;
 
     function showStatus(text) {
         if (statusMessage) {
             statusMessage.textContent = text;
         }
+    }
+
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.textContent = str || '';
+        return div.innerHTML;
+    }
+
+    // Cache playlists and courses for title resolution
+    function cachePlaylistsAndCourses() {
+        firebase.database().ref('playlists').once('value').then(function(snap) {
+            if (snap.exists()) playlistsCache = snap.val() || {};
+            renderFilteredUsers();
+        });
+        firebase.database().ref('courses').once('value').then(function(snap) {
+            if (snap.exists()) coursesCache = snap.val() || {};
+            renderFilteredUsers();
+        });
+    }
+    cachePlaylistsAndCourses();
+
+    function closeModal() {
+        if (purchasesModal) {
+            purchasesModal.classList.add('hidden');
+        }
+        currentSelectedUserKey = null;
+        if (manualCourseIdInput) manualCourseIdInput.value = '';
+    }
+
+    if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+    if (closeModalBottomBtn) closeModalBottomBtn.addEventListener('click', closeModal);
+    if (purchasesModal) {
+        purchasesModal.addEventListener('click', function(e) {
+            if (e.target === purchasesModal) {
+                closeModal();
+            }
+        });
+    }
+
+    if (manualCancelBtn) {
+        manualCancelBtn.addEventListener('click', function() {
+            if (!currentSelectedUserKey) return;
+            var customId = (manualCourseIdInput ? manualCourseIdInput.value.trim() : '');
+            if (!customId) {
+                alert('Please enter a Playlist or Course ID to cancel.');
+                return;
+            }
+            promptAndCancelPurchase(currentSelectedUserKey, {
+                key: customId,
+                source: 'purchases',
+                playlistId: customId,
+                title: resolveTitle(customId, { title: customId }),
+                raw: {}
+            });
+        });
     }
 
     function labelizeField(field) {
@@ -36,7 +106,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function parseTimestamp(value) {
         if (value === undefined || value === null || value === '' || value === '-') return NaN;
 
-        // 1. If numeric or numeric string (like 1784582520000 or "1784582520000")
         if (typeof value === 'number') {
             var time = value;
             if (time < 30000000000) time = time * 1000;
@@ -46,15 +115,12 @@ document.addEventListener('DOMContentLoaded', function() {
         var str = String(value).trim();
         if (str === '' || str === '-') return NaN;
 
-        // Pure digits (e.g. "1784089352363" or "1784089352")
         if (/^\d+$/.test(str)) {
             var num = Number(str);
             if (num < 30000000000) num = num * 1000;
             return num;
         }
 
-        // 2. Match DD-MM-YYYY or DD/MM/YYYY format with optional time & AM/PM
-        // Examples: "20-07-2026 22:42:00", "20/07/2026 22:42:00", "20-07-2026"
         var matchDDMM = str.match(/^(\d{1,2})[-/\.](\d{1,2})[-/\.](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?(?:\s*(am|pm))?$/i);
         if (matchDDMM) {
             var day = parseInt(matchDDMM[1], 10);
@@ -74,7 +140,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // 3. Match YYYY-MM-DD or YYYY/MM/DD format with optional time & AM/PM
         var matchYYYYMM = str.match(/^(\d{4})[-/\.](\d{1,2})[-/\.](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?(?:\s*(am|pm))?$/i);
         if (matchYYYYMM) {
             var year = parseInt(matchYYYYMM[1], 10);
@@ -94,7 +159,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // 4. Fallback to native Date.parse
         var stdParsed = Date.parse(str);
         if (!isNaN(stdParsed)) {
             if (stdParsed < 30000000000) stdParsed = stdParsed * 1000;
@@ -133,31 +197,66 @@ document.addEventListener('DOMContentLoaded', function() {
             th.textContent = column.label;
             usersTableHead.appendChild(th);
         });
+
+        // Actions Header
+        var thActions = document.createElement('th');
+        thActions.className = 'px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider';
+        thActions.textContent = 'Actions';
+        usersTableHead.appendChild(thActions);
     }
 
-    function createRow(userKey, userData, columns) {
+    function createRow(userKey, userData, rawUser, columns) {
         var tr = document.createElement('tr');
-        tr.className = 'border-b border-gray-100 hover:bg-gray-50';
+        tr.className = 'border-b border-gray-100 hover:bg-gray-50 transition';
 
         columns.forEach(function(column) {
             var td = document.createElement('td');
-            td.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-700';
-            var value = column.key === 'userId' ? userKey : userData[column.key];
-            if (value === undefined || value === null || value === '') {
-                value = '-';
-            } else if (column.key === 'login' || column.key === 'lastLogin' || column.key === 'createdAt') {
-                if (typeof value === 'string' && value.includes('-') && value.includes(':')) {
-                    // Keep exact pre-formatted date string as is (e.g. "20-07-2026 22:42:00")
+            td.className = 'px-6 py-4 text-sm text-gray-700';
+
+            if (column.key === 'purchasedCourses') {
+                var boughtList = getUserPurchasesList(rawUser);
+                if (boughtList.length === 0) {
+                    td.innerHTML = '<span class="text-xs text-gray-400 italic">No Courses</span>';
                 } else {
-                    var parsed = parseTimestamp(value);
-                    if (!isNaN(parsed)) {
-                        value = new Date(parsed).toLocaleString();
+                    var badgesHtml = boughtList.map(function(courseName) {
+                        return '<span class="inline-block px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 border border-blue-200 mr-1 my-0.5">' + escapeHtml(courseName) + '</span>';
+                    }).join('');
+                    td.innerHTML = '<div class="flex flex-wrap gap-1 max-w-xs">' + badgesHtml + '</div>';
+                }
+            } else {
+                td.classList.add('whitespace-nowrap');
+                var value = column.key === 'userId' ? userKey : userData[column.key];
+                if (value === undefined || value === null || value === '') {
+                    value = '-';
+                } else if (column.key === 'login' || column.key === 'lastLogin' || column.key === 'createdAt') {
+                    if (typeof value === 'string' && value.includes('-') && value.includes(':')) {
+                        // Keep formatted string
+                    } else {
+                        var parsed = parseTimestamp(value);
+                        if (!isNaN(parsed)) {
+                            value = new Date(parsed).toLocaleString();
+                        }
                     }
                 }
+                td.textContent = value;
             }
-            td.textContent = value;
             tr.appendChild(td);
         });
+
+        // Actions Cell
+        var tdActions = document.createElement('td');
+        tdActions.className = 'px-6 py-4 whitespace-nowrap text-right text-sm font-medium';
+
+        var manageBtn = document.createElement('button');
+        manageBtn.type = 'button';
+        manageBtn.className = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-semibold border border-blue-200 transition cursor-pointer shadow-sm';
+        manageBtn.innerHTML = '<span>🛒</span> Purchases';
+        manageBtn.onclick = function() {
+            openPurchasesModal(userKey, rawUser);
+        };
+
+        tdActions.appendChild(manageBtn);
+        tr.appendChild(tdActions);
 
         return tr;
     }
@@ -168,16 +267,399 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function flattenUserData(userData) {
         var flattened = {};
+        var ignoreKeys = [
+            'notifications', 'notification', 'cancelled_purchases',
+            'purchases', 'courses', 'myCourses', 'purchasedPlaylists',
+            'myPlaylists', 'subscriptions', 'playlists', 'mahapacks',
+            'enrolled', 'enrolledCourses', 'enrolledPlaylists', 'bought',
+            'boughtCourses', 'boughtPlaylists', 'purchased', 'purchasedCourses',
+            'orders', 'transactions', 'unlockedCourses', 'userCourses', 'userPlaylists'
+        ];
+
         Object.keys(userData || {}).forEach(function(key) {
-            if (key === 'notifications' || key === 'notification') return;
+            if (ignoreKeys.indexOf(key) !== -1) return;
             var value = userData[key];
             if (isObject(value)) {
-                flattened[key] = JSON.stringify(value);
-            } else {
-                flattened[key] = value;
+                return;
             }
+            flattened[key] = value;
         });
         return flattened;
+    }
+
+    function resolveTitle(key, itemObj) {
+        if (!itemObj) itemObj = {};
+        var playlistId = itemObj.playlistId || itemObj.courseId || itemObj.id || key;
+        var cachedP = playlistsCache[playlistId] || playlistsCache[key] || {};
+        var cachedC = coursesCache[playlistId] || coursesCache[key] || {};
+
+        return itemObj.title || itemObj.courseName || itemObj.playlistTitle || 
+               itemObj.playlistName || itemObj.name || 
+               cachedP.name || cachedP.title || 
+               cachedC.name || cachedC.title || 
+               ('Course (' + key + ')');
+    }
+
+    function getUserPurchasesList(rawUser) {
+        if (!rawUser) return [];
+        var list = [];
+        var seenKeys = new Set();
+
+        function isKnownCourseOrPlaylist(k) {
+            return !!(playlistsCache[k] || coursesCache[k]);
+        }
+
+        function addTitle(k, itemData) {
+            if (!k || seenKeys.has(k)) return;
+            var itemObj = (itemData && typeof itemData === 'object') ? itemData : {};
+
+            var isCancelled = (itemObj.status === 'cancelled') || 
+                               (rawUser && rawUser.cancelled_purchases && rawUser.cancelled_purchases[k]);
+            if (isCancelled || itemData === false || itemData === null) {
+                return;
+            }
+
+            seenKeys.add(k);
+            var title = resolveTitle(k, itemObj);
+            list.push(title);
+        }
+
+        if (rawUser) {
+            Object.keys(rawUser).forEach(function(topKey) {
+                if (topKey === 'notifications' || topKey === 'notification' || topKey === 'cancelled_purchases') return;
+
+                var val = rawUser[topKey];
+                if (val === null || val === false) return;
+
+                if (isKnownCourseOrPlaylist(topKey)) {
+                    addTitle(topKey, val);
+                    return;
+                }
+
+                if (Array.isArray(val)) {
+                    val.forEach(function(elem) {
+                        if (typeof elem === 'string') addTitle(elem, { title: elem });
+                        else if (elem && typeof elem === 'object') addTitle(elem.id || elem.playlistId || elem.courseId, elem);
+                    });
+                } else if (val && typeof val === 'object') {
+                    Object.keys(val).forEach(function(subKey) {
+                        var subVal = val[subKey];
+                        var isPurchaseNode = /purchase|course|playlist|subscription|mahapack|enrolled|bought|order|transaction|unlocked|access/i.test(topKey);
+                        if ((isPurchaseNode || isKnownCourseOrPlaylist(subKey)) && subVal !== false && subVal !== null) {
+                            addTitle(subKey, subVal);
+                        }
+                    });
+                }
+            });
+        }
+
+        return list;
+    }
+
+    function fetchAllUserPurchases(userKey, rawUser) {
+        return new Promise(function(resolve) {
+            var list = [];
+            var seenKeys = new Set();
+
+            function isKnownCourseOrPlaylist(k) {
+                return !!(playlistsCache[k] || coursesCache[k]);
+            }
+
+            function addPurchaseItem(key, source, itemData) {
+                if (!key || seenKeys.has(key)) return;
+
+                var itemObj = (itemData && typeof itemData === 'object') ? itemData : {};
+
+                if (itemData === false || itemData === null) return;
+
+                seenKeys.add(key);
+
+                var playlistId = itemObj.playlistId || itemObj.courseId || itemObj.id || key;
+                var title = resolveTitle(key, itemObj);
+
+                list.push({
+                    key: key,
+                    source: source,
+                    raw: itemData,
+                    playlistId: playlistId,
+                    title: title,
+                    status: 'active'
+                });
+            }
+
+            if (rawUser) {
+                Object.keys(rawUser).forEach(function(topKey) {
+                    if (topKey === 'notifications' || topKey === 'notification' || topKey === 'cancelled_purchases') return;
+
+                    var val = rawUser[topKey];
+                    if (val === null || val === false) return;
+
+                    if (isKnownCourseOrPlaylist(topKey)) {
+                        addPurchaseItem(topKey, 'user_root', val);
+                        return;
+                    }
+
+                    if (Array.isArray(val)) {
+                        val.forEach(function(elem, idx) {
+                            if (typeof elem === 'string') {
+                                addPurchaseItem(elem, topKey, { title: elem });
+                            } else if (elem && typeof elem === 'object') {
+                                var k = elem.id || elem.playlistId || elem.courseId || ('item_' + idx);
+                                addPurchaseItem(k, topKey, elem);
+                            }
+                        });
+                    } 
+                    else if (val && typeof val === 'object') {
+                        Object.keys(val).forEach(function(subKey) {
+                            var subVal = val[subKey];
+                            if (subVal === false || subVal === null) return;
+
+                            var isPurchaseNode = /purchase|course|playlist|subscription|mahapack|enrolled|bought|order|transaction|unlocked|access/i.test(topKey);
+                            if (isPurchaseNode || isKnownCourseOrPlaylist(subKey)) {
+                                addPurchaseItem(subKey, topKey, subVal);
+                            }
+                        });
+                    }
+                });
+            }
+
+            var rootRefs = [
+                'purchases/' + userKey,
+                'user_purchases/' + userKey,
+                'orders/' + userKey,
+                'user_courses/' + userKey,
+                'subscriptions/' + userKey,
+                'user_playlists/' + userKey
+            ];
+
+            var promises = rootRefs.map(function(path) {
+                return firebase.database().ref(path).once('value').catch(function() { return null; });
+            });
+
+            Promise.all(promises).then(function(snapshots) {
+                snapshots.forEach(function(snap, idx) {
+                    if (snap && snap.exists()) {
+                        var source = rootRefs[idx].split('/')[0];
+                        var data = snap.val();
+                        if (typeof data === 'object') {
+                            Object.keys(data).forEach(function(k) {
+                                var val = data[k];
+                                if (val !== false && val !== null) {
+                                    addPurchaseItem(k, source, val);
+                                }
+                            });
+                        }
+                    }
+                });
+
+                resolve(list);
+            });
+        });
+    }
+
+    function openPurchasesModal(userKey, rawUser) {
+        currentSelectedUserKey = userKey;
+        var name = (rawUser.firstName || rawUser.name || rawUser.username || 'User') + 
+                   (rawUser.lastName ? ' ' + rawUser.lastName : '');
+        var contact = rawUser.email || rawUser.phoneNumber || rawUser.phone || '';
+
+        if (modalUserName) modalUserName.textContent = name + "'s Purchases";
+        if (modalUserId) modalUserId.textContent = 'ID: ' + userKey;
+        if (modalUserContact) modalUserContact.textContent = contact;
+        if (modalStatusMsg) modalStatusMsg.textContent = 'Loading purchases...';
+        if (modalPurchasesContainer) {
+            modalPurchasesContainer.innerHTML = '<div class="text-center py-6 text-gray-500 text-sm">Scanning purchases...</div>';
+        }
+
+        if (purchasesModal) {
+            purchasesModal.classList.remove('hidden');
+        }
+
+        fetchAllUserPurchases(userKey, rawUser).then(function(purchases) {
+            renderModalPurchases(userKey, rawUser, purchases);
+            if (modalStatusMsg) modalStatusMsg.textContent = 'Purchases for ' + name;
+        });
+    }
+
+    function renderModalPurchases(userKey, rawUser, purchases) {
+        if (!modalPurchasesContainer) return;
+        modalPurchasesContainer.innerHTML = '';
+
+        if (!purchases || purchases.length === 0) {
+            modalPurchasesContainer.innerHTML = `
+                <div class="text-center py-8 px-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                    <div class="text-3xl mb-1">🛒</div>
+                    <p class="text-gray-800 font-semibold text-sm">No Purchases Found</p>
+                </div>
+            `;
+            return;
+        }
+
+        purchases.forEach(function(p) {
+            var card = document.createElement('div');
+            card.className = 'p-4 rounded-2xl border border-gray-200 bg-white shadow-sm flex items-center justify-between gap-4 hover:border-blue-200 transition';
+
+            var leftDiv = document.createElement('div');
+            leftDiv.className = 'flex items-center gap-3 min-w-0 flex-1';
+
+            var titleEl = document.createElement('h4');
+            titleEl.className = 'font-bold text-gray-900 text-base truncate';
+            titleEl.textContent = p.title;
+
+            var badge = document.createElement('span');
+            badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800 border border-green-200 shrink-0';
+            badge.textContent = 'Active';
+
+            leftDiv.appendChild(titleEl);
+            leftDiv.appendChild(badge);
+            card.appendChild(leftDiv);
+
+            var actionDiv = document.createElement('div');
+            actionDiv.className = 'shrink-0';
+
+            var cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs rounded-xl shadow-sm hover:shadow transition cursor-pointer';
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.onclick = function() {
+                promptAndCancelPurchase(userKey, p);
+            };
+
+            actionDiv.appendChild(cancelBtn);
+            card.appendChild(actionDiv);
+            modalPurchasesContainer.appendChild(card);
+        });
+    }
+
+    function promptAndCancelPurchase(userKey, purchase) {
+        var userObj = rawUsersData[userKey] || {};
+        var targetId = purchase.playlistId || purchase.key;
+
+        var confirmDelete = confirm('Are you sure you want to cancel purchase for "' + purchase.title + '"?');
+
+        if (!confirmDelete) {
+            return;
+        }
+
+        if (modalStatusMsg) modalStatusMsg.textContent = 'Cancelling course in Firebase...';
+
+        var updates = {};
+
+        // 1. Recursive deep purger of userObj
+        function purgeUserObject(obj, currentPath) {
+            if (!obj || typeof obj !== 'object') return;
+
+            Object.keys(obj).forEach(function(k) {
+                if (k === 'notifications' || k === 'notification') return;
+
+                var val = obj[k];
+                var path = currentPath + '/' + k;
+
+                if (k === targetId || k === purchase.key) {
+                    updates[path] = null;
+                    return;
+                }
+
+                if (val && typeof val === 'object') {
+                    var pId = val.playlistId || val.courseId || val.id || val.key;
+                    if (pId === targetId || pId === purchase.key || (val.title && val.title === purchase.title)) {
+                        updates[path] = null;
+                    } else if (!Array.isArray(val)) {
+                        purgeUserObject(val, path);
+                    }
+                } else if (typeof val === 'string' && (val === targetId || val === purchase.key)) {
+                    updates[path] = null;
+                }
+            });
+        }
+
+        purgeUserObject(userObj, 'users/' + userKey);
+
+        // 2. Wipe standard access nodes explicitly
+        var standardNodes = [
+            'purchases', 'courses', 'myCourses', 'purchasedPlaylists',
+            'myPlaylists', 'subscriptions', 'playlists', 'mahapacks',
+            'enrolled', 'enrolledCourses', 'enrolledPlaylists', 'bought',
+            'boughtCourses', 'boughtPlaylists', 'purchased', 'purchasedCourses',
+            'orders', 'transactions', 'unlockedCourses', 'userCourses', 'userPlaylists'
+        ];
+
+        standardNodes.forEach(function(nodeName) {
+            updates['users/' + userKey + '/' + nodeName + '/' + targetId] = null;
+            updates['users/' + userKey + '/' + nodeName + '/' + purchase.key] = null;
+        });
+
+        updates['users/' + userKey + '/' + targetId] = null;
+        updates['users/' + userKey + '/' + purchase.key] = null;
+
+        // 3. Scan external root database nodes for pushId or targetId matches
+        var rootPaths = [
+            'purchases/' + userKey,
+            'user_purchases/' + userKey,
+            'orders/' + userKey,
+            'user_courses/' + userKey,
+            'subscriptions/' + userKey,
+            'user_playlists/' + userKey
+        ];
+
+        var fetchPromises = rootPaths.map(function(rp) {
+            return firebase.database().ref(rp).once('value').catch(function() { return null; });
+        });
+
+        Promise.all(fetchPromises).then(function(snapshots) {
+            snapshots.forEach(function(snap, idx) {
+                if (snap && snap.exists()) {
+                    var rp = rootPaths[idx];
+                    var data = snap.val();
+                    if (typeof data === 'object') {
+                        Object.keys(data).forEach(function(k) {
+                            if (k === targetId || k === purchase.key) {
+                                updates[rp + '/' + k] = null;
+                            } else {
+                                var item = data[k];
+                                if (item && typeof item === 'object') {
+                                    var pId = item.playlistId || item.courseId || item.id || item.key;
+                                    if (pId === targetId || pId === purchase.key || item.title === purchase.title) {
+                                        updates[rp + '/' + k] = null;
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+
+            // 4. Send student notification
+            var notifId = 'notif_cancel_' + targetId + '_' + Date.now();
+            updates['users/' + userKey + '/notifications/' + notifId] = {
+                title: '🚫 Course Purchase Cancelled',
+                message: 'Your purchase for "' + purchase.title + '" has been cancelled.',
+                courseName: purchase.title,
+                playlistId: targetId,
+                type: 'purchase_cancellation',
+                read: false,
+                sentAt: firebase.database.ServerValue.TIMESTAMP
+            };
+
+            // 5. Execute multi-path update in Firebase
+            return firebase.database().ref().update(updates);
+        }).then(function() {
+            alert('Course "' + purchase.title + '" purchase cancelled successfully!');
+
+            return firebase.database().ref('users/' + userKey).once('value');
+        }).then(function(userSnap) {
+            if (userSnap && userSnap.exists()) {
+                rawUsersData[userKey] = userSnap.val();
+            } else {
+                rawUsersData[userKey] = null;
+            }
+            if (typeof renderFilteredUsers === 'function') renderFilteredUsers();
+            openPurchasesModal(userKey, rawUsersData[userKey] || {});
+        }).catch(function(error) {
+            console.error('Error cancelling course:', error);
+            alert('Failed to cancel course: ' + error.message);
+            if (modalStatusMsg) modalStatusMsg.textContent = 'Error cancelling course.';
+        });
     }
 
     function matchesFilter(userData) {
@@ -189,13 +671,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (currentFilterMode === '24h') {
             if (isNaN(loginTime)) {
-                // Include user if no timestamp parsed, so no user is hidden
                 return true;
             }
             var now = Date.now();
             var twentyFourHours = 24 * 60 * 60 * 1000;
             var diff = now - loginTime;
-            // Include if logged in within 24h window (with 12h margin for clock/timezone difference)
             return diff >= -86400000 && diff <= (twentyFourHours + 12 * 3600 * 1000);
         }
 
@@ -271,33 +751,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        if (rows.length === 0) {
-            emptyState.classList.remove('hidden');
-            var filterDesc = currentFilterMode === '24h' 
-                ? 'in the last 24 hours.' 
-                : (currentFilterMode === 'date' ? 'on date ' + selectedDateString + '.' : 'matching filter criteria.');
-            if (emptyTitle) emptyTitle.textContent = 'No matching recent users.';
-            if (emptyDescription) emptyDescription.textContent = 'No user accounts logged in ' + filterDesc;
-            showStatus('No users found ' + filterDesc);
-            return;
-        }
+        // Register Purchased Courses column
+        columnMap.set('purchasedCourses', { key: 'purchasedCourses', label: 'Purchased Courses' });
 
-        // Sort rows by recency of last login time
-        rows.sort(function(a, b) {
-            var timeA = getUserLastLoginTime(a.raw);
-            if (isNaN(timeA)) timeA = 0;
-
-            var timeB = getUserLastLoginTime(b.raw);
-            if (isNaN(timeB)) timeB = 0;
-
-            if (timeA === timeB) {
-                return b.key.localeCompare(a.key);
-            }
-            return timeB - timeA;
-        });
-
-        // Ensure common fields appear first
-        var preferredFields = ['userId', 'firstName', 'lastName', 'username', 'email', 'phoneNumber', 'phone', 'login', 'lastLogin', 'createdAt'];
+        // Ensure common fields appear first, including Purchased Courses
+        var preferredFields = ['userId', 'firstName', 'lastName', 'username', 'email', 'phoneNumber', 'phone', 'purchasedCourses', 'login', 'createdAt'];
         var columns = [];
         preferredFields.forEach(function(field) {
             if (columnMap.has(field)) {
@@ -313,7 +771,7 @@ document.addEventListener('DOMContentLoaded', function() {
         buildHeader(columns);
 
         rows.forEach(function(row) {
-            usersTableBody.appendChild(createRow(row.key, row.data, columns));
+            usersTableBody.appendChild(createRow(row.key, row.data, row.raw, columns));
         });
 
         emptyState.classList.add('hidden');
@@ -334,7 +792,6 @@ document.addEventListener('DOMContentLoaded', function() {
         renderFilteredUsers();
     }
 
-    // Set up filter controls event listeners
     if (filter24hBtn) {
         filter24hBtn.addEventListener('click', function() {
             currentFilterMode = '24h';
