@@ -117,6 +117,18 @@ function getExpiredPurchaseUpdates(usersObj, playlistsObj) {
     var updates = {};
     if (!usersObj || !playlistsObj) return updates;
 
+    var standardAccessNodes = [
+        'purchases', 'courses', 'myCourses', 'purchasedPlaylists',
+        'myPlaylists', 'subscriptions', 'playlists', 'mahapacks',
+        'enrolled', 'enrolledCourses', 'enrolledPlaylists', 'bought',
+        'boughtCourses', 'boughtPlaylists', 'purchased', 'purchasedCourses',
+        'orders', 'transactions', 'unlockedCourses', 'userCourses', 'userPlaylists'
+    ];
+
+    var rootAccessNodes = [
+        'purchases', 'user_purchases', 'orders', 'user_courses', 'subscriptions', 'user_playlists'
+    ];
+
     Object.keys(usersObj).forEach(function(userId) {
         var user = usersObj[userId];
         if (!user) return;
@@ -134,11 +146,41 @@ function getExpiredPurchaseUpdates(usersObj, playlistsObj) {
             var purchaseDateMs = purchase.purchasedAt || purchase.createdAt || purchase.date || user.createdAt;
             var endDay = playlist.durationEndDay;
             var endMonth = playlist.durationEndMonth;
+            var courseName = playlist.name || playlist.title || purchase.title || 'Course';
 
             if (purchaseDateMs && isPurchaseExpired(purchaseDateMs, endDay, endMonth)) {
+                // 1. Update purchase status
                 updates['users/' + userId + '/purchases/' + purchaseKey + '/status'] = 'cancelled';
                 updates['users/' + userId + '/purchases/' + purchaseKey + '/cancelledAt'] = Date.now();
                 updates['users/' + userId + '/purchases/' + purchaseKey + '/cancellationReason'] = 'Annual validity ended on ' + endDay + ' ' + endMonth;
+
+                // 2. Purge user access nodes
+                standardAccessNodes.forEach(function(nodeName) {
+                    updates['users/' + userId + '/' + nodeName + '/' + playlistId] = null;
+                    updates['users/' + userId + '/' + nodeName + '/' + purchaseKey] = null;
+                });
+
+                // 3. Purge direct playlist/purchase keys under user
+                updates['users/' + userId + '/' + playlistId] = null;
+                updates['users/' + userId + '/' + purchaseKey] = null;
+
+                // 4. Purge external root nodes
+                rootAccessNodes.forEach(function(rp) {
+                    updates[rp + '/' + userId + '/' + playlistId] = null;
+                    updates[rp + '/' + userId + '/' + purchaseKey] = null;
+                });
+
+                // 5. Send student notification for expiry cancellation
+                var notifId = 'notif_cancel_' + playlistId + '_' + Date.now();
+                updates['users/' + userId + '/notifications/' + notifId] = {
+                    title: '🚫 Course Access Expired',
+                    message: 'Your validity for "' + courseName + '" has ended on ' + endDay + ' ' + endMonth + '. Access has been cancelled.',
+                    courseName: courseName,
+                    playlistId: playlistId,
+                    type: 'purchase_cancellation',
+                    read: false,
+                    sentAt: Date.now()
+                };
             }
         });
     });

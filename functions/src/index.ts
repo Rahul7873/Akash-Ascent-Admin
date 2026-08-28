@@ -1,6 +1,7 @@
 import { setGlobalOptions } from "firebase-functions";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onValueCreated } from "firebase-functions/v2/database";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
 
 admin.initializeApp();
@@ -110,51 +111,101 @@ function isPurchaseExpired(purchaseDateInput: any, durationEndDay: string | numb
   return currentDate.getTime() > expiryDate.getTime();
 }
 
-export const cancelExpiredPurchases = onCall(async (request) => {
+/**
+ * Core function to evaluate expired purchases, purge access, and notify students
+ */
+export async function performCancelExpiredPurchases() {
   const database = admin.database();
 
-  try {
-    const [usersSnap, playlistsSnap] = await Promise.all([
-      database.ref("users").once("value"),
-      database.ref("playlists").once("value")
-    ]);
+  const [usersSnap, playlistsSnap] = await Promise.all([
+    database.ref("users").once("value"),
+    database.ref("playlists").once("value")
+  ]);
 
-    const users = usersSnap.val() || {};
-    const playlists = playlistsSnap.val() || {};
-    const updates: { [key: string]: any } = {};
-    let cancelledCount = 0;
+  const users = usersSnap.val() || {};
+  const playlists = playlistsSnap.val() || {};
+  const updates: { [key: string]: any } = {};
+  let cancelledCount = 0;
 
-    Object.keys(users).forEach((userId) => {
-      const user = users[userId];
-      if (!user) return;
+  const standardAccessNodes = [
+    "purchases", "courses", "myCourses", "purchasedPlaylists",
+    "myPlaylists", "subscriptions", "playlists", "mahapacks",
+    "enrolled", "enrolledCourses", "enrolledPlaylists", "bought",
+    "boughtCourses", "boughtPlaylists", "purchased", "purchasedCourses",
+    "orders", "transactions", "unlockedCourses", "userCourses", "userPlaylists"
+  ];
 
-      const purchases = user.purchases || user.subscriptions || user.myCourses || {};
-      Object.keys(purchases).forEach((purchaseKey) => {
-        const purchase = purchases[purchaseKey];
-        if (!purchase || purchase.status === "cancelled" || purchase.status === "expired") return;
+  const rootAccessNodes = [
+    "purchases", "user_purchases", "orders", "user_courses", "subscriptions", "user_playlists"
+  ];
 
-        const playlistId = purchase.playlistId || purchase.courseId || purchaseKey;
-        const playlist = playlists[playlistId];
-        if (!playlist) return;
+  Object.keys(users).forEach((userId) => {
+    const user = users[userId];
+    if (!user) return;
 
-        const purchaseDateMs = purchase.purchasedAt || purchase.createdAt || purchase.date || user.createdAt;
-        const endDay = playlist.durationEndDay;
-        const endMonth = playlist.durationEndMonth;
+    const purchases = user.purchases || user.subscriptions || user.myCourses || {};
+    Object.keys(purchases).forEach((purchaseKey) => {
+      const purchase = purchases[purchaseKey];
+      if (!purchase || purchase.status === "cancelled" || purchase.status === "expired") return;
 
-        if (purchaseDateMs && isPurchaseExpired(purchaseDateMs, endDay, endMonth)) {
-          updates[`users/${userId}/purchases/${purchaseKey}/status`] = "cancelled";
-          updates[`users/${userId}/purchases/${purchaseKey}/cancelledAt`] = admin.database.ServerValue.TIMESTAMP;
-          updates[`users/${userId}/purchases/${purchaseKey}/cancellationReason`] = `Annual course validity ended on ${endDay} ${endMonth}`;
-          cancelledCount++;
-        }
-      });
+      const playlistId = purchase.playlistId || purchase.courseId || purchaseKey;
+      const playlist = playlists[playlistId];
+      if (!playlist) return;
+
+      const purchaseDateMs = purchase.purchasedAt || purchase.createdAt || purchase.date || user.createdAt;
+      const endDay = playlist.durationEndDay;
+      const endMonth = playlist.durationEndMonth;
+      const courseName = playlist.name || playlist.title || purchase.title || "Course";
+
+      if (purchaseDateMs && isPurchaseExpired(purchaseDateMs, endDay, endMonth)) {
+        // 1. Update purchase status
+        updates[`users/${userId}/purchases/${purchaseKey}/status`] = "cancelled";
+        updates[`users/${userId}/purchases/${purchaseKey}/cancelledAt`] = admin.database.ServerValue.TIMESTAMP;
+        updates[`users/${userId}/purchases/${purchaseKey}/cancellationReason`] = `Annual course validity ended on ${endDay} ${endMonth}`;
+
+        // 2. Purge user access nodes
+        standardAccessNodes.forEach((nodeName) => {
+          updates[`users/${userId}/${nodeName}/${playlistId}`] = null;
+          updates[`users/${userId}/${nodeName}/${purchaseKey}`] = null;
+        });
+
+        // 3. Purge direct playlist/purchase keys under user
+        updates[`users/${userId}/${playlistId}`] = null;
+        updates[`users/${userId}/${purchaseKey}`] = null;
+
+        // 4. Purge external root nodes
+        rootAccessNodes.forEach((rp) => {
+          updates[`${rp}/${userId}/${playlistId}`] = null;
+          updates[`${rp}/${userId}/${purchaseKey}`] = null;
+        });
+
+        // 5. Send student notification for expiry cancellation
+        const notifId = `notif_cancel_${playlistId}_${Date.now()}`;
+        updates[`users/${userId}/notifications/${notifId}`] = {
+          title: "🚫 Course Access Expired",
+          message: `Your validity for "${courseName}" has ended on ${endDay} ${endMonth}. Access has been cancelled.`,
+          courseName: courseName,
+          playlistId: playlistId,
+          type: "purchase_cancellation",
+          read: false,
+          sentAt: admin.database.ServerValue.TIMESTAMP
+        };
+
+        cancelledCount++;
+      }
     });
+  });
 
-    if (Object.keys(updates).length > 0) {
-      await database.ref().update(updates);
-    }
+  if (Object.keys(updates).length > 0) {
+    await database.ref().update(updates);
+  }
 
-    return { success: true, cancelledCount };
+  return { success: true, cancelledCount };
+}
+
+export const cancelExpiredPurchases = onCall(async () => {
+  try {
+    return await performCancelExpiredPurchases();
   } catch (error: any) {
     throw new HttpsError("internal", error.message || "Failed to cancel expired purchases");
   }
@@ -187,94 +238,106 @@ function getDaysUntilExpiry(purchaseDateInput: any, durationEndDay: string | num
 
 const NOTIFICATION_THRESHOLDS = [10, 5, 3, 2, 1, 0];
 
-export const sendExpiryNotifications = onCall(async (request) => {
+export async function performSendExpiryNotifications() {
   const database = admin.database();
 
-  try {
-    const [usersSnap, playlistsSnap] = await Promise.all([
-      database.ref("users").once("value"),
-      database.ref("playlists").once("value")
-    ]);
+  const [usersSnap, playlistsSnap] = await Promise.all([
+    database.ref("users").once("value"),
+    database.ref("playlists").once("value")
+  ]);
 
-    const users = usersSnap.val() || {};
-    const playlists = playlistsSnap.val() || {};
-    const updates: { [key: string]: any } = {};
-    const currentYear = new Date().getFullYear();
-    let sentCount = 0;
+  const users = usersSnap.val() || {};
+  const playlists = playlistsSnap.val() || {};
+  const updates: { [key: string]: any } = {};
+  const currentYear = new Date().getFullYear();
+  let sentCount = 0;
 
-    Object.keys(users).forEach((userId) => {
-      const user = users[userId];
-      if (!user) return;
+  Object.keys(users).forEach((userId) => {
+    const user = users[userId];
+    if (!user) return;
 
-      const purchases = user.purchases || user.subscriptions || user.myCourses || {};
-      const existingNotifications = user.notifications || {};
+    const purchases = user.purchases || user.subscriptions || user.myCourses || {};
+    const existingNotifications = user.notifications || {};
 
-      Object.keys(purchases).forEach((purchaseKey) => {
-        const purchase = purchases[purchaseKey];
-        if (!purchase || purchase.status === "cancelled" || purchase.status === "expired") return;
+    Object.keys(purchases).forEach((purchaseKey) => {
+      const purchase = purchases[purchaseKey];
+      if (!purchase || purchase.status === "cancelled" || purchase.status === "expired") return;
 
-        const playlistId = purchase.playlistId || purchase.courseId || purchaseKey;
-        const playlist = playlists[playlistId];
-        if (!playlist) return;
+      const playlistId = purchase.playlistId || purchase.courseId || purchaseKey;
+      const playlist = playlists[playlistId];
+      if (!playlist) return;
 
-        const purchaseDateMs = purchase.purchasedAt || purchase.createdAt || purchase.date || user.createdAt;
-        const endDay = playlist.durationEndDay;
-        const endMonth = playlist.durationEndMonth;
-        const courseName = playlist.name || playlist.title || "Course";
+      const purchaseDateMs = purchase.purchasedAt || purchase.createdAt || purchase.date || user.createdAt;
+      const endDay = playlist.durationEndDay;
+      const endMonth = playlist.durationEndMonth;
+      const courseName = playlist.name || playlist.title || "Course";
 
-        const daysRemaining = getDaysUntilExpiry(purchaseDateMs, endDay, endMonth);
+      const daysRemaining = getDaysUntilExpiry(purchaseDateMs, endDay, endMonth);
 
-        if (daysRemaining !== null && NOTIFICATION_THRESHOLDS.includes(daysRemaining)) {
-          const notifId = `notif_expiry_${playlistId}_${daysRemaining}d_${currentYear}`;
+      if (daysRemaining !== null && NOTIFICATION_THRESHOLDS.includes(daysRemaining)) {
+        const notifId = `notif_expiry_${playlistId}_${daysRemaining}d_${currentYear}`;
 
-          if (!existingNotifications[notifId]) {
-            let title = "";
-            let message = "";
+        if (!existingNotifications[notifId]) {
+          let title = "";
+          let message = "";
 
-            if (daysRemaining === 10) {
-              title = "⏳ Course Expiry Reminder (10 Days Left)";
-              message = `Your access to "${courseName}" will expire in 10 days on ${endDay} ${endMonth}. Please renew to maintain access.`;
-            } else if (daysRemaining === 5) {
-              title = "⌛ Course Expiry Reminder (5 Days Left)";
-              message = `Your access to "${courseName}" will expire in 5 days on ${endDay} ${endMonth}.`;
-            } else if (daysRemaining === 3) {
-              title = "⚠️ Course Expiry Alert (3 Days Left)";
-              message = `Only 3 days remaining for your course "${courseName}". Validity ends on ${endDay} ${endMonth}.`;
-            } else if (daysRemaining === 2) {
-              title = "⚠️ Course Expiry Warning (2 Days Left)";
-              message = `Only 2 days remaining for your course "${courseName}". Access will expire on ${endDay} ${endMonth}.`;
-            } else if (daysRemaining === 1) {
-              title = "🚨 Course Expiring Tomorrow!";
-              message = `Your course "${courseName}" expires tomorrow on ${endDay} ${endMonth}. Final chance to renew.`;
-            } else if (daysRemaining === 0) {
-              title = "🚨 Final Notice: Course Expiring Today!";
-              message = `Today (${endDay} ${endMonth}) is the last day of your course "${courseName}". Access will be cancelled at midnight.`;
-            }
-
-            updates[`users/${userId}/notifications/${notifId}`] = {
-              title,
-              message,
-              courseName,
-              playlistId,
-              daysRemaining,
-              type: "expiry_notification",
-              read: false,
-              sentAt: admin.database.ServerValue.TIMESTAMP
-            };
-            sentCount++;
+          if (daysRemaining === 10) {
+            title = "⏳ Course Expiry Reminder (10 Days Left)";
+            message = `Your access to "${courseName}" will expire in 10 days on ${endDay} ${endMonth}. Please renew to maintain access.`;
+          } else if (daysRemaining === 5) {
+            title = "⌛ Course Expiry Reminder (5 Days Left)";
+            message = `Your access to "${courseName}" will expire in 5 days on ${endDay} ${endMonth}.`;
+          } else if (daysRemaining === 3) {
+            title = "⚠️ Course Expiry Alert (3 Days Left)";
+            message = `Only 3 days remaining for your course "${courseName}". Validity ends on ${endDay} ${endMonth}.`;
+          } else if (daysRemaining === 2) {
+            title = "⚠️ Course Expiry Warning (2 Days Left)";
+            message = `Only 2 days remaining for your course "${courseName}". Access will expire on ${endDay} ${endMonth}.`;
+          } else if (daysRemaining === 1) {
+            title = "🚨 Course Expiring Tomorrow!";
+            message = `Your course "${courseName}" expires tomorrow on ${endDay} ${endMonth}. Final chance to renew.`;
+          } else if (daysRemaining === 0) {
+            title = "🚨 Final Notice: Course Expiring Today!";
+            message = `Today (${endDay} ${endMonth}) is the last day of your course "${courseName}". Access will be cancelled at midnight.`;
           }
+
+          updates[`users/${userId}/notifications/${notifId}`] = {
+            title,
+            message,
+            courseName,
+            playlistId,
+            daysRemaining,
+            type: "expiry_notification",
+            read: false,
+            sentAt: admin.database.ServerValue.TIMESTAMP
+          };
+          sentCount++;
         }
-      });
+      }
     });
+  });
 
-    if (Object.keys(updates).length > 0) {
-      await database.ref().update(updates);
-    }
+  if (Object.keys(updates).length > 0) {
+    await database.ref().update(updates);
+  }
 
-    return { success: true, sentCount };
+  return { success: true, sentCount };
+}
+
+export const sendExpiryNotifications = onCall(async () => {
+  try {
+    return await performSendExpiryNotifications();
   } catch (error: any) {
     throw new HttpsError("internal", error.message || "Failed to send expiry notifications");
   }
+});
+
+/**
+ * Scheduled Cron Job: Runs daily at midnight to auto-cancel expired purchases & send reminders
+ */
+export const autoCancelExpiredPurchasesCron = onSchedule("every 24 hours", async () => {
+  await performCancelExpiredPurchases();
+  await performSendExpiryNotifications();
 });
 
 export const sendAndroidFCMNotification = onCall(async (request) => {
