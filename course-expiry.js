@@ -19,36 +19,7 @@ const MONTH_MAP = {
 
 const NOTIFICATION_THRESHOLDS = [10, 5, 3, 2, 1, 0];
 
-/**
- * Checks if a purchase has expired based on its annual end day and end month.
- */
-function isPurchaseExpired(purchaseDateInput, durationEndDay, durationEndMonth) {
-    if (!durationEndDay || !durationEndMonth) return false;
-
-    var endDay = parseInt(durationEndDay, 10);
-    var monthKey = String(durationEndMonth).trim().toLowerCase();
-    var endMonth = MONTH_MAP[monthKey];
-
-    if (isNaN(endDay) || endMonth === undefined) return false;
-
-    var purchaseDate = new Date(purchaseDateInput);
-    if (isNaN(purchaseDate.getTime())) return false;
-
-    var currentDate = new Date();
-
-    var expiryDate = new Date(purchaseDate.getFullYear(), endMonth, endDay, 23, 59, 59, 999);
-
-    if (purchaseDate.getTime() > expiryDate.getTime()) {
-        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-    }
-
-    return currentDate.getTime() > expiryDate.getTime();
-}
-
-/**
- * Calculates remaining days until course annual expiry.
- */
-function getDaysUntilExpiry(purchaseDateInput, durationEndDay, durationEndMonth) {
+function getExpiryDateForPurchase(purchaseDateInput, durationEndDay, durationEndMonth) {
     if (!durationEndDay || !durationEndMonth) return null;
 
     var endDay = parseInt(durationEndDay, 10);
@@ -60,16 +31,40 @@ function getDaysUntilExpiry(purchaseDateInput, durationEndDay, durationEndMonth)
     var purchaseDate = new Date(purchaseDateInput);
     if (isNaN(purchaseDate.getTime())) return null;
 
-    var currentDate = new Date();
-    currentDate.setHours(0, 0, 0, 0);
+    var expiryDate = new Date(purchaseDate.getFullYear(), endMonth, endDay, 23, 59, 59, 999);
 
-    var expiryDate = new Date(purchaseDate.getFullYear(), endMonth, endDay, 0, 0, 0, 0);
-
-    if (purchaseDate.getTime() > expiryDate.getTime()) {
+    var minValidityMs = 14 * 24 * 60 * 60 * 1000;
+    if (expiryDate.getTime() - purchaseDate.getTime() < minValidityMs) {
         expiryDate.setFullYear(expiryDate.getFullYear() + 1);
     }
 
-    var diffMs = expiryDate.getTime() - currentDate.getTime();
+    return expiryDate;
+}
+
+/**
+ * Checks if a purchase has expired based on its annual end day and end month.
+ */
+function isPurchaseExpired(purchaseDateInput, durationEndDay, durationEndMonth) {
+    var expiryDate = getExpiryDateForPurchase(purchaseDateInput, durationEndDay, durationEndMonth);
+    if (!expiryDate) return false;
+
+    var currentDate = new Date();
+    return currentDate.getTime() > expiryDate.getTime();
+}
+
+/**
+ * Calculates remaining days until course annual expiry.
+ */
+function getDaysUntilExpiry(purchaseDateInput, durationEndDay, durationEndMonth) {
+    var expiryDate = getExpiryDateForPurchase(purchaseDateInput, durationEndDay, durationEndMonth);
+    if (!expiryDate) return null;
+
+    var currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+
+    var targetDate = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), expiryDate.getDate(), 0, 0, 0, 0);
+
+    var diffMs = targetDate.getTime() - currentDate.getTime();
     return Math.round(diffMs / (1000 * 60 * 60 * 24));
 }
 

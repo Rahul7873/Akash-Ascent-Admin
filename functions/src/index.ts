@@ -89,26 +89,47 @@ const MONTH_MAP: { [key: string]: number } = {
   december: 11, dec: 11
 };
 
-function isPurchaseExpired(purchaseDateInput: any, durationEndDay: string | number, durationEndMonth: string): boolean {
-  if (!durationEndDay || !durationEndMonth) return false;
+function getExpiryDateForPurchase(purchaseDateInput: any, durationEndDay: string | number, durationEndMonth: string): Date | null {
+  if (!durationEndDay || !durationEndMonth) return null;
 
   const endDay = parseInt(String(durationEndDay), 10);
   const monthKey = String(durationEndMonth).trim().toLowerCase();
   const endMonth = MONTH_MAP[monthKey];
 
-  if (isNaN(endDay) || endMonth === undefined) return false;
+  if (isNaN(endDay) || endMonth === undefined) return null;
 
   const purchaseDate = new Date(purchaseDateInput);
-  if (isNaN(purchaseDate.getTime())) return false;
+  if (isNaN(purchaseDate.getTime())) return null;
 
-  const currentDate = new Date();
   const expiryDate = new Date(purchaseDate.getFullYear(), endMonth, endDay, 23, 59, 59, 999);
 
-  if (purchaseDate.getTime() > expiryDate.getTime()) {
+  const minValidityMs = 14 * 24 * 60 * 60 * 1000;
+  if (expiryDate.getTime() - purchaseDate.getTime() < minValidityMs) {
     expiryDate.setFullYear(expiryDate.getFullYear() + 1);
   }
 
+  return expiryDate;
+}
+
+function isPurchaseExpired(purchaseDateInput: any, durationEndDay: string | number, durationEndMonth: string): boolean {
+  const expiryDate = getExpiryDateForPurchase(purchaseDateInput, durationEndDay, durationEndMonth);
+  if (!expiryDate) return false;
+
+  const currentDate = new Date();
   return currentDate.getTime() > expiryDate.getTime();
+}
+
+function getDaysUntilExpiry(purchaseDateInput: any, durationEndDay: string | number, durationEndMonth: string): number | null {
+  const expiryDate = getExpiryDateForPurchase(purchaseDateInput, durationEndDay, durationEndMonth);
+  if (!expiryDate) return null;
+
+  const currentDate = new Date();
+  currentDate.setHours(0, 0, 0, 0);
+
+  const targetDate = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), expiryDate.getDate(), 0, 0, 0, 0);
+
+  const diffMs = targetDate.getTime() - currentDate.getTime();
+  return Math.round(diffMs / (1000 * 60 * 60 * 24));
 }
 
 /**
@@ -211,30 +232,7 @@ export const cancelExpiredPurchases = onCall(async () => {
   }
 });
 
-function getDaysUntilExpiry(purchaseDateInput: any, durationEndDay: string | number, durationEndMonth: string): number | null {
-  if (!durationEndDay || !durationEndMonth) return null;
 
-  const endDay = parseInt(String(durationEndDay), 10);
-  const monthKey = String(durationEndMonth).trim().toLowerCase();
-  const endMonth = MONTH_MAP[monthKey];
-
-  if (isNaN(endDay) || endMonth === undefined) return null;
-
-  const purchaseDate = new Date(purchaseDateInput);
-  if (isNaN(purchaseDate.getTime())) return null;
-
-  const currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0);
-
-  const expiryDate = new Date(purchaseDate.getFullYear(), endMonth, endDay, 0, 0, 0, 0);
-
-  if (purchaseDate.getTime() > expiryDate.getTime()) {
-    expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-  }
-
-  const diffMs = expiryDate.getTime() - currentDate.getTime();
-  return Math.round(diffMs / (1000 * 60 * 60 * 24));
-}
 
 const NOTIFICATION_THRESHOLDS = [10, 5, 3, 2, 1, 0];
 
