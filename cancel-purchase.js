@@ -20,11 +20,16 @@ document.addEventListener('DOMContentLoaded', function () {
     var modalStatusMsg = document.getElementById('modal-status-msg');
     var manualCourseIdInput = document.getElementById('manual-course-id-input');
     var manualCancelBtn = document.getElementById('manual-cancel-btn');
+    var modalBatchToolbar = document.getElementById('modal-batch-toolbar');
+    var modalSelectAllCb = document.getElementById('modal-select-all-cb');
+    var modalSelectAllText = document.getElementById('modal-select-all-text');
+    var modalCancelSelectedBtn = document.getElementById('modal-cancel-selected-btn');
 
     var rawUsersData = {};
     var playlistsCache = {};
     var coursesCache = {};
     var currentSelectedUserKey = null;
+    var currentModalPurchases = [];
 
     function showStatus(text) {
         if (statusMessage) {
@@ -399,8 +404,10 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderModalPurchases(userKey, rawUser, purchases) {
         if (!modalPurchasesContainer) return;
         modalPurchasesContainer.innerHTML = '';
+        currentModalPurchases = purchases || [];
 
         if (!purchases || purchases.length === 0) {
+            if (modalBatchToolbar) modalBatchToolbar.classList.add('hidden');
             modalPurchasesContainer.innerHTML = `
                 <div class="text-center py-8 px-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                     <div class="text-3xl mb-1">🛒</div>
@@ -410,12 +417,32 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        purchases.forEach(function (p) {
+        // Show batch toolbar with Select All and Cancel Selected/All
+        if (modalBatchToolbar) {
+            modalBatchToolbar.classList.remove('hidden');
+            if (modalSelectAllCb) modalSelectAllCb.checked = true;
+            if (modalSelectAllText) modalSelectAllText.textContent = 'Select All (' + purchases.length + ')';
+            if (modalCancelSelectedBtn) {
+                modalCancelSelectedBtn.disabled = false;
+                modalCancelSelectedBtn.innerHTML = '<span>🚫 Cancel Selected (' + purchases.length + ')</span>';
+            }
+        }
+
+        var checkboxes = [];
+
+        purchases.forEach(function (p, index) {
             var card = document.createElement('div');
-            card.className = 'p-4 rounded-2xl border border-gray-200 bg-white shadow-sm flex items-center justify-between gap-4 hover:border-blue-200 transition';
+            card.className = 'p-4 rounded-2xl border border-gray-200 bg-white shadow-sm flex items-center justify-between gap-4 hover:border-red-200 transition';
 
             var leftDiv = document.createElement('div');
             leftDiv.className = 'flex items-center gap-3 min-w-0 flex-1';
+
+            var cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = true;
+            cb.className = 'w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500 cursor-pointer purchase-item-cb shrink-0';
+            cb.dataset.index = index;
+            checkboxes.push(cb);
 
             var titleEl = document.createElement('h4');
             titleEl.className = 'font-bold text-gray-900 text-base truncate';
@@ -425,6 +452,7 @@ document.addEventListener('DOMContentLoaded', function () {
             badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800 border border-green-200 shrink-0';
             badge.textContent = 'Active';
 
+            leftDiv.appendChild(cb);
             leftDiv.appendChild(titleEl);
             leftDiv.appendChild(badge);
             card.appendChild(leftDiv);
@@ -437,60 +465,110 @@ document.addEventListener('DOMContentLoaded', function () {
             cancelBtn.className = 'px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs rounded-xl shadow-sm hover:shadow transition cursor-pointer';
             cancelBtn.textContent = 'Cancel Purchase';
             cancelBtn.onclick = function () {
-                promptAndCancelPurchase(userKey, p);
+                promptAndCancelMultiplePurchases(userKey, [p]);
             };
 
             actionDiv.appendChild(cancelBtn);
             card.appendChild(actionDiv);
             modalPurchasesContainer.appendChild(card);
         });
-    }
 
-    function promptAndCancelPurchase(userKey, purchase) {
-        var userObj = rawUsersData[userKey] || {};
-        var targetId = purchase.playlistId || purchase.key;
+        function updateSelectionState() {
+            var checkedCount = 0;
+            checkboxes.forEach(function (c) {
+                if (c.checked) checkedCount++;
+            });
 
-        var confirmDelete = confirm('Are you sure you want to cancel purchase for "' + purchase.title + '"?');
-
-        if (!confirmDelete) {
-            return;
+            if (modalSelectAllCb) {
+                modalSelectAllCb.checked = (checkedCount === checkboxes.length && checkboxes.length > 0);
+            }
+            if (modalCancelSelectedBtn) {
+                modalCancelSelectedBtn.disabled = (checkedCount === 0);
+                if (checkedCount === checkboxes.length) {
+                    modalCancelSelectedBtn.innerHTML = '<span>🚫 Cancel All Purchases (' + checkedCount + ')</span>';
+                } else {
+                    modalCancelSelectedBtn.innerHTML = '<span>🚫 Cancel Selected (' + checkedCount + ')</span>';
+                }
+            }
         }
 
-        if (modalStatusMsg) modalStatusMsg.textContent = 'Cancelling course in Firebase...';
+        // Attach Select All checkbox listener
+        if (modalSelectAllCb) {
+            modalSelectAllCb.onchange = function () {
+                var isAll = modalSelectAllCb.checked;
+                checkboxes.forEach(function (c) {
+                    c.checked = isAll;
+                });
+                updateSelectionState();
+            };
+        }
 
-        var updates = {};
+        // Attach individual checkbox listeners
+        checkboxes.forEach(function (c) {
+            c.onchange = updateSelectionState;
+        });
 
-        // 1. Recursive deep purger of userObj
-        function purgeUserObject(obj, currentPath) {
-            if (!obj || typeof obj !== 'object') return;
+        // Attach Cancel Selected button listener
+        if (modalCancelSelectedBtn) {
+            modalCancelSelectedBtn.onclick = function () {
+                var selectedPurchases = [];
+                checkboxes.forEach(function (c, idx) {
+                    if (c.checked && currentModalPurchases[idx]) {
+                        selectedPurchases.push(currentModalPurchases[idx]);
+                    }
+                });
 
-            Object.keys(obj).forEach(function (k) {
-                if (k === 'notifications' || k === 'notification') return;
-
-                var val = obj[k];
-                var path = currentPath + '/' + k;
-
-                if (k === targetId || k === purchase.key) {
-                    updates[path] = null;
+                if (selectedPurchases.length === 0) {
+                    alert('Please select at least one purchase to cancel.');
                     return;
                 }
 
-                if (val && typeof val === 'object') {
-                    var pId = val.playlistId || val.courseId || val.id || val.key;
-                    if (pId === targetId || pId === purchase.key || (val.title && val.title === purchase.title)) {
-                        updates[path] = null;
-                    } else if (!Array.isArray(val)) {
-                        purgeUserObject(val, path);
-                    }
-                } else if (typeof val === 'string' && (val === targetId || val === purchase.key)) {
-                    updates[path] = null;
-                }
-            });
+                promptAndCancelMultiplePurchases(userKey, selectedPurchases);
+            };
+        }
+    }
+
+    function promptAndCancelPurchase(userKey, purchase) {
+        promptAndCancelMultiplePurchases(userKey, [purchase]);
+    }
+
+    function promptAndCancelMultiplePurchases(userKey, purchasesList) {
+        if (!purchasesList || purchasesList.length === 0) return;
+
+        var userObj = rawUsersData[userKey] || {};
+        var count = purchasesList.length;
+        var confirmText = count === 1
+            ? ('Are you sure you want to cancel purchase for "' + purchasesList[0].title + '"?')
+            : ('Are you sure you want to cancel ALL ' + count + ' selected purchases for this student?');
+
+        if (!confirm(confirmText)) {
+            return;
         }
 
-        purgeUserObject(userObj, 'users/' + userKey);
+        if (modalStatusMsg) modalStatusMsg.textContent = 'Cancelling ' + count + ' purchase(s) in Firebase...';
 
-        // 2. Wipe standard access nodes explicitly
+        var updates = {};
+
+        // Collect all possible phone/UID keys for this user
+        var userKeys = new Set();
+        if (userKey) userKeys.add(userKey);
+        if (userObj.uid) userKeys.add(userObj.uid);
+        if (userObj.userId) userKeys.add(userObj.userId);
+        if (userObj.phone) userKeys.add(userObj.phone);
+        if (userObj.phoneNumber) userKeys.add(userObj.phoneNumber);
+        if (userObj.mobile) userKeys.add(userObj.mobile);
+
+        var phoneStr = (userObj.phone || userObj.phoneNumber || userObj.mobile || userKey || '').toString().replace(/\D/g, '');
+        if (phoneStr) {
+            userKeys.add(phoneStr);
+            if (phoneStr.length >= 10) {
+                var last10 = phoneStr.slice(-10);
+                userKeys.add(last10);
+                userKeys.add('+91' + last10);
+                userKeys.add('91' + last10);
+            }
+        }
+
         var standardNodes = [
             'purchases', 'courses', 'myCourses', 'purchasedPlaylists',
             'myPlaylists', 'subscriptions', 'playlists', 'mahapacks',
@@ -499,23 +577,67 @@ document.addEventListener('DOMContentLoaded', function () {
             'orders', 'transactions', 'unlockedCourses', 'userCourses', 'userPlaylists'
         ];
 
-        standardNodes.forEach(function (nodeName) {
-            updates['users/' + userKey + '/' + nodeName + '/' + targetId] = null;
-            updates['users/' + userKey + '/' + nodeName + '/' + purchase.key] = null;
+        var rootPaths = [];
+        userKeys.forEach(function (uK) {
+            rootPaths.push('purchases/' + uK);
+            rootPaths.push('user_purchases/' + uK);
+            rootPaths.push('orders/' + uK);
+            rootPaths.push('user_courses/' + uK);
+            rootPaths.push('subscriptions/' + uK);
+            rootPaths.push('user_playlists/' + uK);
         });
 
-        updates['users/' + userKey + '/' + targetId] = null;
-        updates['users/' + userKey + '/' + purchase.key] = null;
+        // 1. Recursive deep purger of userObj for all target IDs
+        function purgeUserObjectForTargets(obj, currentPath, targetIdsSet) {
+            if (!obj || typeof obj !== 'object') return;
 
-        // 3. Scan external root database nodes for pushId or targetId matches
-        var rootPaths = [
-            'purchases/' + userKey,
-            'user_purchases/' + userKey,
-            'orders/' + userKey,
-            'user_courses/' + userKey,
-            'subscriptions/' + userKey,
-            'user_playlists/' + userKey
-        ];
+            Object.keys(obj).forEach(function (k) {
+                if (k === 'notifications' || k === 'notification') return;
+
+                var val = obj[k];
+                var path = currentPath + '/' + k;
+
+                if (targetIdsSet.has(k)) {
+                    updates[path] = null;
+                    return;
+                }
+
+                if (val && typeof val === 'object') {
+                    var pId = val.playlistId || val.courseId || val.id || val.key;
+                    if (targetIdsSet.has(pId) || (val.title && targetIdsSet.has(val.title))) {
+                        updates[path] = null;
+                    } else if (!Array.isArray(val)) {
+                        purgeUserObjectForTargets(val, path, targetIdsSet);
+                    }
+                } else if (typeof val === 'string' && targetIdsSet.has(val)) {
+                    updates[path] = null;
+                }
+            });
+        }
+
+        var targetIdsSet = new Set();
+        purchasesList.forEach(function (p) {
+            var targetId = p.playlistId || p.key;
+            if (targetId) targetIdsSet.add(targetId);
+            if (p.key) targetIdsSet.add(p.key);
+            if (p.title) targetIdsSet.add(p.title);
+        });
+
+        userKeys.forEach(function (uK) {
+            purgeUserObjectForTargets(userObj, 'users/' + uK, targetIdsSet);
+
+            purchasesList.forEach(function (p) {
+                var targetId = p.playlistId || p.key;
+                standardNodes.forEach(function (nodeName) {
+                    updates['users/' + uK + '/' + nodeName + '/' + targetId] = null;
+                    updates['users/' + uK + '/' + nodeName + '/' + p.key] = null;
+                });
+                updates['users/' + uK + '/' + targetId] = null;
+                updates['users/' + uK + '/' + p.key] = null;
+                updates['users/' + uK + '/course_' + targetId] = null;
+                updates['users/' + uK + '/playlist_' + targetId] = null;
+            });
+        });
 
         var fetchPromises = rootPaths.map(function (rp) {
             return firebase.database().ref(rp).once('value').catch(function () { return null; });
@@ -528,13 +650,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     var data = snap.val();
                     if (typeof data === 'object') {
                         Object.keys(data).forEach(function (k) {
-                            if (k === targetId || k === purchase.key) {
+                            if (targetIdsSet.has(k)) {
                                 updates[rp + '/' + k] = null;
                             } else {
                                 var item = data[k];
                                 if (item && typeof item === 'object') {
                                     var pId = item.playlistId || item.courseId || item.id || item.key;
-                                    if (pId === targetId || pId === purchase.key || item.title === purchase.title) {
+                                    if (targetIdsSet.has(pId) || (item.title && targetIdsSet.has(item.title))) {
                                         updates[rp + '/' + k] = null;
                                     }
                                 }
@@ -544,22 +666,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-            // 4. Send student notification
-            var notifId = 'notif_cancel_' + targetId + '_' + Date.now();
-            updates['users/' + userKey + '/notifications/' + notifId] = {
-                title: '🚫 Course Purchase Cancelled',
-                message: 'Your purchase for "' + purchase.title + '" has been cancelled.',
-                courseName: purchase.title,
-                playlistId: targetId,
-                type: 'purchase_cancellation',
-                read: false,
-                sentAt: firebase.database.ServerValue.TIMESTAMP
-            };
+            // Send cancellation notification
+            var notifId = 'notif_cancel_all_' + Date.now();
+            var titlesSummary = purchasesList.map(function (p) { return p.title; }).join(', ');
+            userKeys.forEach(function (uK) {
+                updates['users/' + uK + '/notifications/' + notifId] = {
+                    title: '🚫 Course Access Cancelled',
+                    message: 'Your purchase(s) for ' + titlesSummary + ' have been cancelled.',
+                    type: 'purchase_cancellation',
+                    read: false,
+                    sentAt: firebase.database.ServerValue.TIMESTAMP
+                };
+            });
 
-            // 5. Execute multi-path update in Firebase
             return firebase.database().ref().update(updates);
         }).then(function () {
-            alert('Course "' + purchase.title + '" purchase cancelled successfully!');
+            alert('Successfully cancelled ' + count + ' purchase(s)!');
 
             return firebase.database().ref('users/' + userKey).once('value');
         }).then(function (userSnap) {
@@ -571,9 +693,16 @@ document.addEventListener('DOMContentLoaded', function () {
             renderTable();
             openPurchasesModal(userKey, rawUsersData[userKey] || {});
         }).catch(function (error) {
-            console.error('Error cancelling course:', error);
-            alert('Failed to cancel course: ' + error.message);
-            if (modalStatusMsg) modalStatusMsg.textContent = 'Error cancelling course.';
+            console.error('Error cancelling purchases:', error);
+            alert('Failed to cancel purchases: ' + error.message);
+            if (modalStatusMsg) modalStatusMsg.textContent = 'Error cancelling purchases.';
+        });
+    }
+
+    var phoneSearchBar = document.getElementById('phone-search-bar');
+    if (phoneSearchBar) {
+        phoneSearchBar.addEventListener('input', function () {
+            renderTable();
         });
     }
 
@@ -586,12 +715,33 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        var searchQuery = (phoneSearchBar ? phoneSearchBar.value.trim().toLowerCase() : '');
+        var searchDigits = searchQuery.replace(/\D/g, '');
+
         var columnMap = new Map();
         columnMap.set('userId', { key: 'userId', label: 'User ID' });
         var rows = [];
 
         userKeys.forEach(function (key) {
             var rawData = rawUsersData[key] || {};
+            var hasProfile = rawData.firstName || rawData.name || rawData.username || rawData.email || rawData.phoneNumber || rawData.phone || rawData.mobile || rawData.uid || rawData.createdAt || rawData.login;
+            if (!hasProfile) return;
+
+            var phone = (rawData.phoneNumber || rawData.phone || rawData.mobile || '').toString();
+            var phoneDigits = phone.replace(/\D/g, '');
+            var name = ((rawData.firstName || rawData.name || '') + ' ' + (rawData.lastName || '')).trim().toLowerCase();
+            var email = (rawData.email || '').toString().toLowerCase();
+            var uid = (rawData.uid || '').toString().toLowerCase();
+
+            // Search filter by phone digits, name, email, userId
+            if (searchQuery) {
+                var isPhoneMatch = searchDigits && (phoneDigits.includes(searchDigits) || key.includes(searchDigits));
+                var isTextMatch = name.includes(searchQuery) || email.includes(searchQuery) || uid.includes(searchQuery) || key.toLowerCase().includes(searchQuery);
+                if (!isPhoneMatch && !isTextMatch) {
+                    return;
+                }
+            }
+
             var userData = flattenUserData(rawData);
             rows.push({ key: key, data: userData, raw: rawData });
             Object.keys(userData).forEach(function (field) {
@@ -623,12 +773,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
         buildHeader(columns);
 
+        if (rows.length === 0) {
+            emptyState.classList.remove('hidden');
+            showStatus(searchQuery ? 'No users matching search query.' : 'No users available.');
+            return;
+        }
+
         rows.forEach(function (row) {
             usersTableBody.appendChild(createRow(row.key, row.data, row.raw, columns));
         });
 
         emptyState.classList.add('hidden');
-        showStatus('Loaded ' + rows.length + ' user' + (rows.length === 1 ? '' : 's') + '.');
+        showStatus('Showing ' + rows.length + ' user' + (rows.length === 1 ? '' : 's') + (searchQuery ? ' (filtered)' : '') + '.');
     }
 
     showStatus('Loading users...');

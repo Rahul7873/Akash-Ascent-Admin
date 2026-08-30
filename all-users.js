@@ -559,6 +559,13 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    var phoneSearchBar = document.getElementById('phone-search-bar');
+    if (phoneSearchBar) {
+        phoneSearchBar.addEventListener('input', function () {
+            renderTable();
+        });
+    }
+
     function renderTable() {
         usersTableBody.innerHTML = '';
         var userKeys = Object.keys(rawUsersData || {});
@@ -568,12 +575,33 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        var searchQuery = (phoneSearchBar ? phoneSearchBar.value.trim().toLowerCase() : '');
+        var searchDigits = searchQuery.replace(/\D/g, '');
+
         var columnMap = new Map();
         columnMap.set('userId', { key: 'userId', label: 'User ID' });
         var rows = [];
 
         userKeys.forEach(function (key) {
             var rawData = rawUsersData[key] || {};
+            var hasProfile = rawData.firstName || rawData.name || rawData.username || rawData.email || rawData.phoneNumber || rawData.phone || rawData.mobile || rawData.uid || rawData.createdAt || rawData.login;
+            if (!hasProfile) return;
+
+            var phone = (rawData.phoneNumber || rawData.phone || rawData.mobile || '').toString();
+            var phoneDigits = phone.replace(/\D/g, '');
+            var name = ((rawData.firstName || rawData.name || '') + ' ' + (rawData.lastName || '')).trim().toLowerCase();
+            var email = (rawData.email || '').toString().toLowerCase();
+            var uid = (rawData.uid || '').toString().toLowerCase();
+
+            // Search filter by phone digits, name, email, userId
+            if (searchQuery) {
+                var isPhoneMatch = searchDigits && (phoneDigits.includes(searchDigits) || key.includes(searchDigits));
+                var isTextMatch = name.includes(searchQuery) || email.includes(searchQuery) || uid.includes(searchQuery) || key.toLowerCase().includes(searchQuery);
+                if (!isPhoneMatch && !isTextMatch) {
+                    return;
+                }
+            }
+
             var userData = flattenUserData(rawData);
             rows.push({ key: key, data: userData, raw: rawData });
             Object.keys(userData).forEach(function (field) {
@@ -605,12 +633,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
         buildHeader(columns);
 
+        if (rows.length === 0) {
+            emptyState.classList.remove('hidden');
+            showStatus(searchQuery ? 'No users matching search query.' : 'No users available.');
+            return;
+        }
+
         rows.forEach(function (row) {
             usersTableBody.appendChild(createRow(row.key, row.data, row.raw, columns));
         });
 
         emptyState.classList.add('hidden');
-        showStatus('Loaded ' + rows.length + ' user' + (rows.length === 1 ? '' : 's') + '.');
+        showStatus('Showing ' + rows.length + ' user' + (rows.length === 1 ? '' : 's') + (searchQuery ? ' (filtered)' : '') + '.');
     }
 
     showStatus('Loading users...');

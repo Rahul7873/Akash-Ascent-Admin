@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akash Ascent - Give Subscription</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase App (the core Firebase SDK) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <!-- Firebase Database -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script type="module" src="firebase-init.js"></script>
+    <style>
+        .card-shadow { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen w-full font-sans overflow-x-hidden">
+    <div class="min-h-screen w-full max-w-full mx-auto px-4 py-8 flex flex-col gap-8">
+        <!-- Header Section -->
+        <div id="header-section" class="flex flex-col md:flex-row items-start md:items-center gap-4 mb-2 w-full max-w-full">
+            <div id="logo-container" class="w-20 h-20 md:w-24 md:h-24 bg-white rounded-full flex items-center justify-center overflow-hidden shrink-0">
+                <img id="main-logo" src="logo.png" alt="Logo" class="w-full h-full object-cover" />
+            </div>
+            <div id="title-container" class="flex-1">
+                <div class="flex items-center gap-2">
+                    <h1 id="main-title" class="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 uppercase">Akash Ascent</h1>
+                    <span class="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full border border-emerald-200">Admin Grant</span>
+                </div>
+                <p id="main-tagline" class="text-base md:text-lg text-gray-800 italic">Give Course & Mahapack Subscriptions to Students.</p>
+            </div>
+            <div class="flex items-center gap-2 ml-auto">
+                <a href="Dashboard.html" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition text-sm font-medium">Back</a>
+                <button id="logout-btn" class="px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition text-sm font-medium">Logout</button>
+            </div>
+        </div>
+
+        <!-- Global Status / Notification Message Banner -->
+        <div id="status-banner" class="hidden p-4 rounded-2xl text-sm font-medium transition duration-300 flex items-center justify-between">
+            <span id="status-text"></span>
+            <button id="close-status-btn" class="text-xs font-bold underline ml-4">Dismiss</button>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full">
+            
+            <!-- Left Column: User Search & Profile (5 Cols) -->
+            <div class="lg:col-span-5 flex flex-col gap-6">
+                <!-- User Search Box Card -->
+                <div class="bg-white rounded-3xl border border-gray-200 p-6 card-shadow">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-bold">
+                            🔍
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-gray-900">1. Find Student</h2>
+                            <p class="text-xs text-gray-500">Search student by registered mobile number or email</p>
+                        </div>
+                    </div>
+
+                    <form id="search-user-form" class="space-y-3">
+                        <div class="relative">
+                            <label for="phone-search-input" class="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wider">Phone Number / Identifier</label>
+                            <div class="flex gap-2">
+                                <input 
+                                    id="phone-search-input" 
+                                    type="text" 
+                                    placeholder="e.g. 9876543210 or email" 
+                                    required 
+                                    class="flex-1 p-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" 
+                                />
+                                <button 
+                                    type="submit" 
+                                    id="search-user-btn"
+                                    class="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-sm transition shrink-0 flex items-center gap-1.5 shadow-sm"
+                                >
+                                    <span>Search</span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Search Suggestions / Matches Dropdown -->
+                    <div id="search-matches-container" class="mt-4 hidden space-y-2 max-h-48 overflow-y-auto custom-scrollbar border-t border-gray-100 pt-3">
+                        <p class="text-xs font-semibold text-gray-500 mb-1">Matched Accounts:</p>
+                        <div id="search-matches-list" class="space-y-1.5"></div>
+                    </div>
+                </div>
+
+                <!-- Selected User Details Card -->
+                <div id="selected-user-card" class="bg-white rounded-3xl border border-gray-200 p-6 card-shadow hidden">
+                    <div class="flex items-center justify-between border-b border-gray-100 pb-4 mb-4">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold flex items-center justify-center text-xl shrink-0 uppercase" id="user-avatar">
+                                U
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="text-base font-bold text-gray-900 truncate" id="user-display-name">Student Name</h3>
+                                <p class="text-xs text-gray-500 font-mono truncate" id="user-display-id">ID: -</p>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-semibold shrink-0">
+                            Selected
+                        </span>
+                    </div>
+
+                    <!-- User Contact Info Fields -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs mb-5">
+                        <div class="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                            <span class="text-gray-400 block font-medium uppercase text-[10px]">Mobile Number</span>
+                            <span class="font-bold text-gray-800 text-sm mt-0.5 block truncate" id="user-display-phone">-</span>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                            <span class="text-gray-400 block font-medium uppercase text-[10px]">Email Address</span>
+                            <span class="font-bold text-gray-800 text-sm mt-0.5 block truncate" id="user-display-email">-</span>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                            <span class="text-gray-400 block font-medium uppercase text-[10px]">Selected Class</span>
+                            <span class="font-bold text-gray-800 text-sm mt-0.5 block truncate" id="user-display-class">-</span>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                            <span class="text-gray-400 block font-medium uppercase text-[10px]">Registered On</span>
+                            <span class="font-bold text-gray-800 text-sm mt-0.5 block truncate" id="user-display-created">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Current Active Subscriptions List -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Active Courses / Subscriptions</h4>
+                            <span class="text-xs text-emerald-600 font-semibold" id="active-courses-count">0 Active</span>
+                        </div>
+                        <div id="user-active-courses-list" class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                            <p class="text-xs text-gray-400 italic py-2 text-center bg-gray-50 rounded-xl">No active courses found.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty Prompt if No User Selected -->
+                <div id="user-placeholder-card" class="bg-white rounded-3xl border border-dashed border-gray-300 p-8 text-center text-gray-400">
+                    <div class="text-4xl mb-2">👤</div>
+                    <h3 class="font-bold text-gray-700 text-sm">No Student Selected</h3>
+                    <p class="text-xs text-gray-500 mt-1">Search for a student using their phone number above to view their profile and grant subscriptions.</p>
+                </div>
+            </div>
+
+            <!-- Right Column: Course Selection & Grant Action (7 Cols) -->
+            <div class="lg:col-span-7 flex flex-col gap-6">
+                <div class="bg-white rounded-3xl border border-gray-200 p-6 card-shadow flex flex-col gap-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl font-bold">
+                                🎓
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-bold text-gray-900">2. Select Course or Mahapack</h2>
+                                <p class="text-xs text-gray-500">Pick which course or Mahapack package to grant access to</p>
+                            </div>
+                        </div>
+
+                        <!-- Class Filter Dropdown -->
+                        <div class="flex items-center gap-2">
+                            <label for="class-filter-select" class="text-xs font-semibold text-gray-500 shrink-0">Filter Class:</label>
+                            <select id="class-filter-select" class="p-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-purple-500 bg-white">
+                                <option value="all">All Classes</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Search within courses -->
+                    <div class="relative">
+                        <input 
+                            id="course-search-input" 
+                            type="text" 
+                            placeholder="Type to filter courses by title..." 
+                            class="w-full p-3 pl-9 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <span class="absolute left-3 top-3 text-gray-400 text-sm">🔍</span>
+                    </div>
+
+                    <!-- Courses Grid / List -->
+                    <div id="courses-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[420px] overflow-y-auto custom-scrollbar pr-1">
+                        <!-- Loading spinner -->
+                        <div class="col-span-full py-16 text-center text-gray-400">
+                            <svg class="animate-spin h-6 w-6 text-purple-600 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span class="text-xs font-medium">Loading courses and Mahapacks...</span>
+                        </div>
+                    </div>
+
+                    <!-- Selected Course Summary & Grant Parameters -->
+                    <div id="grant-config-section" class="pt-4 border-t border-gray-100 flex flex-col gap-4">
+                        <div class="p-4 rounded-2xl bg-purple-50 border border-purple-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                            <div class="min-w-0 flex-1">
+                                <span class="text-[10px] font-bold text-purple-700 uppercase tracking-wider">Selected Course to Grant:</span>
+                                <h4 class="text-sm font-bold text-gray-900 truncate" id="selected-course-title">None Selected</h4>
+                                <p class="text-xs text-purple-600" id="selected-course-meta">Please select a course from above.</p>
+                            </div>
+                            <div class="text-right shrink-0" id="selected-course-validity-badge">
+                                <span class="text-xs font-semibold px-3 py-1 bg-white text-purple-700 rounded-full border border-purple-200">
+                                    Annual Validity
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Optional Grant Reason / Admin Note -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label for="grant-reason-input" class="block text-xs font-bold text-gray-700 mb-1">Grant Note / Reason (Optional)</label>
+                                <input 
+                                    id="grant-reason-input" 
+                                    type="text" 
+                                    placeholder="e.g. Free Scholarship / Admin Promotion" 
+                                    class="w-full p-2.5 border border-gray-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                />
+                            </div>
+                            <div>
+                                <label for="grant-notif-checkbox" class="block text-xs font-bold text-gray-700 mb-1">In-App Notification</label>
+                                <label class="flex items-center gap-2 p-2.5 bg-gray-50 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition text-xs font-medium text-gray-700">
+                                    <input type="checkbox" id="grant-notif-checkbox" checked class="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500" />
+                                    <span>Send celebratory notification</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Action Button -->
+                        <button 
+                            id="confirm-grant-btn" 
+                            disabled 
+                            class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-sm rounded-2xl transition shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                            <span>🎁 Grant Subscription to Student</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Section -->
+        <footer id="footer-section" class="mt-12 pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
+            <div>
+                © 2026 <span class="font-semibold text-gray-700">Akash Ascent</span>. All rights reserved.
+            </div>
+            <a href="https://rahul7873.github.io/portfolio-/" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 bg-blue-50 text-blue-700 px-3.5 py-1.5 rounded-full font-medium border border-blue-100 hover:bg-blue-100 hover:text-blue-800 transition shadow-sm">
+                <span>💬 For any problem or technical assistance, please call the <span class="underline font-bold">developer</span>.</span>
+            </a>
+        </footer>
+    </div>
+
+    <script type="module" src="logout.js"></script>
+    <script type="module" src="give-subscription.js"></script>
+</body>
+</html>
