@@ -73,15 +73,109 @@ document.addEventListener('DOMContentLoaded', function() {
             var card = document.createElement('div');
             card.className = 'bg-white rounded-3xl border border-gray-200 p-6 card-shadow flex flex-col justify-between gap-6';
 
-            // Top Header: Name + Delete Button
+            // Top Header: Name + Edit Preference + Delete Button
             var cardHeader = document.createElement('div');
-            cardHeader.className = 'flex items-center justify-between w-full pb-3 border-b border-gray-100';
-            cardHeader.innerHTML = `
-                <h3 class="font-bold text-gray-800 text-lg truncate" title="${prefName}">${prefName}</h3>
-                <button class="text-red-500 hover:text-red-700 transition text-xs font-semibold delete-pref-btn" data-id="${prefId}">
-                    Delete Category
-                </button>
-            `;
+            cardHeader.className = 'flex items-center justify-between gap-2 w-full pb-3 border-b border-gray-100 min-h-[44px]';
+
+            function renderHeaderNormal() {
+                var safeName = prefName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                cardHeader.innerHTML = `
+                    <h3 class="font-bold text-gray-800 text-lg truncate flex-1" title="${safeName}">${safeName}</h3>
+                    <div class="flex items-center gap-3 shrink-0">
+                        <button class="text-blue-600 hover:text-blue-800 transition text-xs font-semibold edit-pref-btn">
+                            Edit Preference
+                        </button>
+                        <button class="text-red-500 hover:text-red-700 transition text-xs font-semibold delete-pref-btn" data-id="${prefId}">
+                            Delete Category
+                        </button>
+                    </div>
+                `;
+
+                var editBtn = cardHeader.querySelector('.edit-pref-btn');
+                if (editBtn) {
+                    editBtn.addEventListener('click', function() {
+                        renderHeaderEdit();
+                    });
+                }
+
+                var deleteBtn = cardHeader.querySelector('.delete-pref-btn');
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', function() {
+                        if (confirm('Are you sure you want to delete this preference category and all its classes?')) {
+                            firebase.database().ref('preferences/' + prefId).remove().then(function() {
+                                showStatus('Preference deleted.');
+                            }).catch(function(err) {
+                                console.error('Delete preference error:', err);
+                            });
+                        }
+                    });
+                }
+            }
+
+            function renderHeaderEdit() {
+                var safeVal = prefName.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+                cardHeader.innerHTML = `
+                    <div class="flex items-center gap-2 w-full">
+                        <input type="text" class="flex-1 p-2 text-xs md:text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 edit-pref-input" value="${safeVal}" placeholder="Preference name" />
+                        <button class="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700 transition shrink-0 save-pref-btn">Save</button>
+                        <button class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-300 transition shrink-0 cancel-pref-btn">Cancel</button>
+                    </div>
+                `;
+
+                var editInput = cardHeader.querySelector('.edit-pref-input');
+                var saveBtn = cardHeader.querySelector('.save-pref-btn');
+                var cancelBtn = cardHeader.querySelector('.cancel-pref-btn');
+
+                if (editInput) {
+                    editInput.focus();
+                    editInput.select();
+                }
+
+                function handleSave() {
+                    var newName = editInput.value.trim();
+                    if (!newName) {
+                        showStatus('Preference name cannot be empty.', true);
+                        return;
+                    }
+
+                    if (newName === prefName) {
+                        renderHeaderNormal();
+                        return;
+                    }
+
+                    showStatus('Updating preference...');
+                    firebase.database().ref('preferences/' + prefId).update({
+                        name: newName
+                    }).then(function() {
+                        showStatus('Preference name updated successfully!');
+                    }).catch(function(err) {
+                        console.error('Update preference failed:', err);
+                        showStatus('Failed to update preference name.', true);
+                        renderHeaderNormal();
+                    });
+                }
+
+                if (saveBtn) {
+                    saveBtn.addEventListener('click', handleSave);
+                }
+                if (editInput) {
+                    editInput.addEventListener('keydown', function(evt) {
+                        if (evt.key === 'Enter') {
+                            evt.preventDefault();
+                            handleSave();
+                        } else if (evt.key === 'Escape') {
+                            renderHeaderNormal();
+                        }
+                    });
+                }
+                if (cancelBtn) {
+                    cancelBtn.addEventListener('click', function() {
+                        renderHeaderNormal();
+                    });
+                }
+            }
+
+            renderHeaderNormal();
             card.appendChild(cardHeader);
 
             // Middle section wrapper
@@ -170,23 +264,8 @@ document.addEventListener('DOMContentLoaded', function() {
         showStatus('Connection failed. Please refresh.', true);
     });
 
-    // 4. Attach Delete Listeners for Category and Class
+    // 4. Attach Delete Listeners for nested Class pills
     function attachDeleteListeners() {
-        // Delete Preference Category
-        var deletePrefButtons = document.querySelectorAll('.delete-pref-btn');
-        deletePrefButtons.forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var id = btn.getAttribute('data-id');
-                if (confirm('Are you sure you want to delete this preference category and all its classes?')) {
-                    firebase.database().ref('preferences/' + id).remove().then(function() {
-                        showStatus('Preference deleted.');
-                    }).catch(function(err) {
-                        console.error('Delete preference error:', err);
-                    });
-                }
-            });
-        });
-
         // Delete nested Class pill
         var deleteClassButtons = document.querySelectorAll('.delete-class-btn');
         deleteClassButtons.forEach(function(btn) {
